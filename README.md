@@ -2,6 +2,8 @@
 
 基於 [rebas.tw 野球革命](https://www.rebas.tw/) 的中華職棒數據分析工具集。
 
+**線上版：https://cpbl-alpha.vercel.app/**
+
 ## 快速開始
 
 ```bash
