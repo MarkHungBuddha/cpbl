@@ -290,6 +290,32 @@ function computeFielding(gamesData, teamLookup) {
   // { compositeKey: { uniqid, name, number, teamUniqid, teamName, teamColor, positions: { [pos]: outs } } }
   const players = {};
 
+  function creditOuts(fielders, outsCount, fieldingTeamUniqid) {
+    if (outsCount <= 0 || !fielders || !fielders.length) return;
+    fielders.forEach(f => {
+      const pos = f.position;
+      if (pos < 1 || pos > 9) return; // skip DH (10)
+      const p = f.fielder;
+      if (!p || !p.uniqid) return;
+
+      const key = `${p.uniqid}_${fieldingTeamUniqid}`;
+      if (!players[key]) {
+        const team = teamLookup[fieldingTeamUniqid] || {};
+        players[key] = {
+          uniqid: p.uniqid,
+          name: p.name || '',
+          number: p.number || '',
+          teamUniqid: fieldingTeamUniqid,
+          teamName: team.name || '',
+          teamAbbr: team.abbr || '',
+          teamColor: team.color || '#999',
+          positions: {},
+        };
+      }
+      players[key].positions[pos] = (players[key].positions[pos] || 0) + outsCount;
+    });
+  }
+
   gamesData.forEach(gameResp => {
     if (!gameResp) return;
     const game = gameResp.data || gameResp;
@@ -299,38 +325,35 @@ function computeFielding(gamesData, teamLookup) {
     const homeTeam = game.home?.team_uniqid || '';
     const awayTeam = game.away?.team_uniqid || '';
 
+    // Group PAs by half-inning to detect between-PA outs (caught stealing, pickoff)
+    const halfInnings = {};
     paList.forEach(pa => {
-      const fielders = pa.fielders;
-      if (!fielders || !fielders.length) return;
+      const key = `${pa.inning}_${pa.side}`;
+      if (!halfInnings[key]) halfInnings[key] = [];
+      halfInnings[key].push(pa);
+    });
 
-      const outsThisPA = Math.max(0, (pa.end_outs || 0) - (pa.outs || 0));
-      if (outsThisPA === 0) return;
+    Object.values(halfInnings).forEach(pas => {
+      for (let i = 0; i < pas.length; i++) {
+        const pa = pas[i];
+        const fielders = pa.fielders;
+        if (!fielders || !fielders.length) continue;
+        const fieldingTeamUniqid = pa.side === 'AWAY' ? homeTeam : awayTeam;
 
-      // side=AWAY means away batting, home fielding
-      const fieldingTeamUniqid = pa.side === 'AWAY' ? homeTeam : awayTeam;
-
-      fielders.forEach(f => {
-        const pos = f.position;
-        if (pos < 1 || pos > 9) return; // skip DH (10)
-        const p = f.fielder;
-        if (!p || !p.uniqid) return;
-
-        const key = `${p.uniqid}_${fieldingTeamUniqid}`;
-        if (!players[key]) {
-          const team = teamLookup[fieldingTeamUniqid] || {};
-          players[key] = {
-            uniqid: p.uniqid,
-            name: p.name || '',
-            number: p.number || '',
-            teamUniqid: fieldingTeamUniqid,
-            teamName: team.name || '',
-            teamAbbr: team.abbr || '',
-            teamColor: team.color || '#999',
-            positions: {},
-          };
+        // 1. Outs between previous PA and this PA (caught stealing, pickoff, etc.)
+        if (i > 0) {
+          const prevEndOuts = pas[i - 1].end_outs || 0;
+          const gapOuts = (pa.outs || 0) - prevEndOuts;
+          if (gapOuts > 0) {
+            // Credit to fielders at the time of THIS PA (they were on the field when it happened)
+            creditOuts(fielders, gapOuts, fieldingTeamUniqid);
+          }
         }
-        players[key].positions[pos] = (players[key].positions[pos] || 0) + outsThisPA;
-      });
+
+        // 2. Outs during this PA
+        const outsThisPA = Math.max(0, (pa.end_outs || 0) - (pa.outs || 0));
+        creditOuts(fielders, outsThisPA, fieldingTeamUniqid);
+      }
     });
   });
 
