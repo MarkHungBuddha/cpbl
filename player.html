@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CPBL 球員資料 — Rebas</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  :root {
+    --bg: #f0f2f5;
+    --card: #ffffff;
+    --text: #1a1a2e;
+    --text-muted: #6b7280;
+    --border: #e5e7eb;
+    --accent: #2563eb;
+    --accent-light: #eff6ff;
+    --green: #16a34a;
+    --green-bg: #f0fdf4;
+    --red: #dc2626;
+    --red-bg: #fef2f2;
+    --radius: 4px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* Header */
+  .header {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 0;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .header-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .header h1 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+  .header h1 span { color: var(--accent); }
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* Nav link */
+  .nav-link {
+    font-size: 0.85rem;
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .nav-link:hover { text-decoration: underline; }
+
+  /* Content */
+  .content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+  .section { margin-bottom: 32px; }
+  .section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title::before {
+    content: '';
+    width: 3px;
+    height: 18px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+
+  /* Card */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  /* Profile Card */
+  .profile-card {
+    display: flex;
+    gap: 24px;
+    padding: 24px;
+    align-items: flex-start;
+  }
+  .profile-avatar {
+    width: 120px;
+    height: 120px;
+    border-radius: var(--radius);
+    object-fit: cover;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .profile-avatar-placeholder {
+    width: 120px;
+    height: 120px;
+    border-radius: var(--radius);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+  .profile-info { flex: 1; min-width: 0; }
+  .profile-name {
+    font-size: 1.75rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin-bottom: 4px;
+  }
+  .profile-number {
+    font-size: 1.1rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-left: 8px;
+  }
+  .profile-position {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+  .team-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 10px;
+    text-decoration: none;
+    color: inherit;
+    transition: opacity 0.15s;
+  }
+  .team-badge:hover { opacity: 0.8; }
+  .team-color-bar {
+    width: 4px;
+    height: 18px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .profile-meta {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .meta-item { display: flex; align-items: center; gap: 4px; }
+  .meta-label { font-weight: 600; color: var(--text); }
+
+  /* Summary Stats */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+    gap: 1px;
+    background: var(--border);
+  }
+  .summary-cell {
+    background: var(--card);
+    padding: 14px 8px;
+    text-align: center;
+  }
+  .summary-cell .label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+  }
+  .summary-cell .value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--text);
+  }
+
+  /* Experience list */
+  .exp-group { margin-bottom: 16px; }
+  .exp-year {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 8px;
+    padding-left: 4px;
+  }
+  .exp-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.85rem;
+  }
+  .exp-item:last-child { border-bottom: none; }
+  .exp-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .exp-team { font-weight: 600; min-width: 80px; }
+  .exp-season { color: var(--text-muted); flex: 1; }
+  .exp-number { color: var(--text-muted); font-size: 0.8rem; }
+
+  /* Loading / Error */
+  .loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 24px;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error-box {
+    background: var(--red-bg);
+    border: 1px solid var(--red);
+    border-radius: var(--radius);
+    padding: 24px;
+    text-align: center;
+    color: var(--red);
+    font-weight: 500;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .header-inner { flex-direction: column; align-items: flex-start; }
+    .content { padding: 16px; }
+    .profile-card { flex-direction: column; align-items: center; text-align: center; }
+    .profile-meta { justify-content: center; }
+    .profile-avatar, .profile-avatar-placeholder { width: 96px; height: 96px; }
+    .summary-grid { grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useMemo } = React;
+
+async function proxyFetch(apiPath) {
+  const target = 'https://www.rebas.tw' + apiPath;
+  const resp = await fetch('/proxy?url=' + encodeURIComponent(target));
+  const ct = resp.headers.get('content-type') || '';
+  if (!ct.includes('json')) throw new Error('API 回傳非 JSON');
+  return resp.json();
+}
+
+const POSITION_MAP = {
+  P: '投手', C: '捕手', '1B': '一壘手', '2B': '二壘手', '3B': '三壘手',
+  SS: '游擊手', LF: '左外野手', CF: '中外野手', RF: '右外野手',
+  DH: '指定打擊', OF: '外野手', IF: '內野手', UT: '工具人'
+};
+
+function formatAvg(val) {
+  if (val == null || isNaN(val)) return '---';
+  const s = val.toFixed(3);
+  return s.startsWith('0') ? s.slice(1) : s;
+}
+
+function formatRate(val) {
+  if (val == null || isNaN(val)) return '---';
+  return val.toFixed(3);
+}
+
+function formatIP(ip_out) {
+  if (!ip_out) return '0.0';
+  return Math.floor(ip_out / 3) + '.' + (ip_out % 3);
+}
+
+function calcAge(birthday) {
+  if (!birthday) return null;
+  const bd = new Date(birthday);
+  const now = new Date();
+  let age = now.getFullYear() - bd.getFullYear();
+  const m = now.getMonth() - bd.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < bd.getDate())) age--;
+  return age;
+}
+
+function parseTeamColors(colorStr) {
+  if (!colorStr) return ['var(--accent)', '#ffffff'];
+  return colorStr.split(';').map(c => c.trim());
+}
+
+function formatBirthday(bd) {
+  if (!bd) return '---';
+  const d = new Date(bd);
+  return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/* ---- Header ---- */
+function Header() {
+  return (
+    <div className="header">
+      <div className="header-inner">
+        <h1><span>CPBL</span> 球員資料</h1>
+        <div className="header-right">
+          <a href="/index.html" className="nav-link">API Explorer</a>
+          <a href="/standings.html" className="nav-link">戰績表</a>
+          <a href="/fielding.html" className="nav-link">守備局數</a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---- Profile Card ---- */
+function ProfileCard({ player }) {
+  const latest = player.experiences && player.experiences.length > 0 ? player.experiences[0] : null;
+  const colors = latest ? parseTeamColors(latest.team_color) : [];
+  const primaryColor = colors[0] || 'var(--accent)';
+  const age = calcAge(player.birthday);
+  const posText = [
+    POSITION_MAP[player.first_position] || player.first_position,
+    player.second_position ? (POSITION_MAP[player.second_position] || player.second_position) : null
+  ].filter(Boolean).join(' / ') || '---';
+
+  return (
+    <div className="card section">
+      <div className="profile-card">
+        {player.avatar_url ? (
+          <img className="profile-avatar" src={player.avatar_url} alt={player.name} />
+        ) : (
+          <div className="profile-avatar-placeholder">?</div>
+        )}
+        <div className="profile-info">
+          <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap' }}>
+            <span className="profile-name">{player.name}</span>
+            {latest && latest.number && (
+              <span className="profile-number">#{latest.number}</span>
+            )}
+          </div>
+          <div className="profile-position">{posText}</div>
+          {latest && (
+            <a
+              href={`/team.html?id=${latest.team_uniqid}`}
+              className="team-badge"
+              style={{ background: primaryColor + '18', color: primaryColor }}
+            >
+              <span className="team-color-bar" style={{ background: primaryColor }} />
+              {latest.team}
+            </a>
+          )}
+          <div className="profile-meta">
+            <div className="meta-item">
+              <span className="meta-label">生日</span>
+              {formatBirthday(player.birthday)}
+              {age != null && ` (${age}歲)`}
+            </div>
+            <div className="meta-item">
+              <span className="meta-label">投</span> {player.p_hand === 'R' ? '右' : player.p_hand === 'L' ? '左' : player.p_hand || '---'}
+            </div>
+            <div className="meta-item">
+              <span className="meta-label">打</span> {player.b_hand === 'R' ? '右' : player.b_hand === 'L' ? '左' : player.b_hand === 'S' ? '雙' : player.b_hand || '---'}
+            </div>
+            {player.is_formal && (
+              <div className="meta-item" style={{ color: 'var(--green)' }}>一軍登錄</div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---- Summary Stats ---- */
+function BattingSummary({ batting }) {
+  const items = [
+    { label: 'AVG', value: formatAvg(batting.AVG) },
+    { label: 'OBP', value: formatAvg(batting.OBP) },
+    { label: 'SLG', value: formatAvg(batting.SLG) },
+    { label: 'PA', value: batting.PA },
+    { label: 'H', value: batting.H },
+    { label: 'HR', value: batting.HR },
+    { label: 'RBI', value: batting.RBI },
+    { label: 'BB', value: batting.BB },
+    { label: 'SO', value: batting.SO },
+    { label: 'SB', value: batting.SB },
+  ];
+  return (
+    <div className="section">
+      <div className="section-title">生涯打擊總計</div>
+      <div className="card">
+        <div className="summary-grid">
+          {items.map(it => (
+            <div key={it.label} className="summary-cell">
+              <div className="label">{it.label}</div>
+              <div className="value">{it.value ?? '---'}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PitchingSummary({ pitching }) {
+  const items = [
+    { label: 'ERA', value: formatRate(pitching.ERA) },
+    { label: 'WHIP', value: formatRate(pitching.WHIP) },
+    { label: 'W', value: pitching.Win },
+    { label: 'L', value: pitching.Lose },
+    { label: 'SV', value: pitching.Save },
+    { label: 'HLD', value: pitching.Hold },
+    { label: 'IP', value: formatIP(pitching.IP_out) },
+    { label: 'SO', value: pitching.SO },
+    { label: 'BB', value: pitching.BB },
+    { label: 'HR', value: pitching.HR },
+  ];
+  return (
+    <div className="section">
+      <div className="section-title">生涯投球總計</div>
+      <div className="card">
+        <div className="summary-grid">
+          {items.map(it => (
+            <div key={it.label} className="summary-cell">
+              <div className="label">{it.label}</div>
+              <div className="value">{it.value ?? '---'}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---- Season-by-Season Table ---- */
+
+/* ---- Experience History ---- */
+function ExperienceHistory({ experiences }) {
+  if (!experiences || experiences.length === 0) return null;
+
+  // group by year
+  const groups = {};
+  experiences.forEach(exp => {
+    const year = exp.season_year || '其他';
+    if (!groups[year]) groups[year] = [];
+    groups[year].push(exp);
+  });
+
+  const years = Object.keys(groups).sort((a, b) => b - a);
+
+  return (
+    <div className="section">
+      <div className="section-title">經歷</div>
+      <div className="card" style={{ padding: '16px 0' }}>
+        {years.map(year => {
+          const items = groups[year];
+          return (
+            <div key={year} className="exp-group" style={{ padding: '0 16px' }}>
+              <div className="exp-year">{year} 年</div>
+              {items.map((exp, i) => {
+                const colors = parseTeamColors(exp.team_color);
+                const primary = colors[0] || 'var(--text-muted)';
+                return (
+                  <div key={i} className="exp-item">
+                    <span className="exp-dot" style={{ background: primary }} />
+                    <span className="exp-team" style={{ color: primary }}>{exp.team}</span>
+                    <span className="exp-season">{exp.season}</span>
+                    {exp.number && <span className="exp-number">#{exp.number}</span>}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ---- App ---- */
+function App() {
+  const [player, setPlayer] = useState(null);
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const playerId = new URLSearchParams(window.location.search).get('id');
+
+  useEffect(() => {
+    if (!playerId) {
+      setError('未提供球員 ID，請使用 ?id=xxx 參數');
+      setLoading(false);
+      return;
+    }
+
+    document.title = `球員資料 — CPBL`;
+
+    Promise.all([
+      proxyFetch(`/api/players/${playerId}`),
+      proxyFetch(`/api/players/${playerId}/stats`),
+    ]).then(([pRes, sRes]) => {
+      if (!pRes.data) throw new Error('找不到球員資料');
+      setPlayer(pRes.data);
+      setStats(sRes.data);
+      document.title = `${pRes.data.name} — CPBL 球員資料`;
+    }).catch(err => {
+      setError(err.message || '載入失敗');
+    }).finally(() => {
+      setLoading(false);
+    });
+  }, [playerId]);
+
+  if (loading) {
+    return (
+      <div>
+        <Header />
+        <div className="content">
+          <div className="loading">
+            <div className="spinner" />
+            <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>載入球員資料中...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div>
+        <Header />
+        <div className="content">
+          <div className="error-box">{error}</div>
+        </div>
+      </div>
+    );
+  }
+
+  const history = stats?.history;
+  const hasBatting = history?.batting && history.batting.PA > 0;
+  const hasPitching = history?.pitching && history.pitching.IP_out > 0;
+
+  return (
+    <div>
+      <Header />
+      <div className="content">
+        <ProfileCard player={player} />
+
+        {hasBatting && <BattingSummary batting={history.batting} />}
+        {hasPitching && <PitchingSummary pitching={history.pitching} />}
+
+
+        <ExperienceHistory experiences={player.experiences} />
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

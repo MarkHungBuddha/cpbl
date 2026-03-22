@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CPBL 球隊資料 — Rebas</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  :root {
+    --bg: #f0f2f5;
+    --card: #ffffff;
+    --text: #1a1a2e;
+    --text-muted: #6b7280;
+    --border: #e5e7eb;
+    --accent: #2563eb;
+    --accent-light: #eff6ff;
+    --green: #16a34a;
+    --green-bg: #f0fdf4;
+    --red: #dc2626;
+    --red-bg: #fef2f2;
+    --radius: 4px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* Header */
+  .header {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 0;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .header-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .header h1 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+  .header h1 span { color: var(--accent); }
+  .nav-link {
+    font-size: 0.85rem;
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .nav-link:hover { text-decoration: underline; }
+
+  /* Content */
+  .content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+  .section { margin-bottom: 32px; }
+  .section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title::before {
+    content: '';
+    width: 3px;
+    height: 18px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+
+  /* Card */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  /* Team Profile */
+  .team-profile {
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .team-profile-icon {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--border);
+    flex-shrink: 0;
+  }
+  .team-profile-info { flex: 1; min-width: 200px; }
+  .team-profile-name {
+    font-size: 1.5rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .team-profile-abbr {
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    background: var(--bg);
+    padding: 2px 10px;
+    border-radius: var(--radius);
+  }
+  .team-profile-city {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+  }
+  .team-color-strip {
+    height: 4px;
+    width: 100%;
+  }
+
+  /* Season Select */
+  .season-select {
+    appearance: none;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 36px 8px 14px;
+    border-radius: var(--radius);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236b7280' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    min-width: 220px;
+  }
+  .season-select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+  /* Stats Grid */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 1px;
+    background: var(--border);
+  }
+  .stat-item {
+    background: var(--card);
+    padding: 16px;
+    text-align: center;
+  }
+  .stat-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+  }
+  .stat-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Games Table */
+  .games-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+  .games-table th {
+    padding: 10px 12px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .games-table th:first-child { text-align: left; }
+  .games-table td {
+    padding: 10px 12px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    font-variant-numeric: tabular-nums;
+  }
+  .games-table td:first-child { text-align: left; }
+  .games-table tr:last-child td { border-bottom: none; }
+  .games-table tr:hover { background: var(--accent-light); }
+  .result-win {
+    color: var(--green);
+    font-weight: 700;
+    background: var(--green-bg);
+    padding: 2px 8px;
+    border-radius: var(--radius);
+    display: inline-block;
+    min-width: 24px;
+  }
+  .result-lose {
+    color: var(--red);
+    font-weight: 700;
+    background: var(--red-bg);
+    padding: 2px 8px;
+    border-radius: var(--radius);
+    display: inline-block;
+    min-width: 24px;
+  }
+  .result-draw {
+    color: var(--text-muted);
+    font-weight: 700;
+    background: var(--bg);
+    padding: 2px 8px;
+    border-radius: var(--radius);
+    display: inline-block;
+    min-width: 24px;
+  }
+  .opponent-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .opponent-link:hover { text-decoration: underline; }
+  .badge-home, .badge-away {
+    font-size: 0.75rem;
+    padding: 1px 6px;
+    border-radius: var(--radius);
+    font-weight: 500;
+  }
+  .badge-home { background: #eff6ff; color: var(--accent); }
+  .badge-away { background: #f3f4f6; color: var(--text-muted); }
+
+  /* History list */
+  .history-list {
+    padding: 0;
+    list-style: none;
+  }
+  .history-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.9rem;
+  }
+  .history-item:last-child { border-bottom: none; }
+  .history-year {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    min-width: 48px;
+  }
+  .history-season { color: var(--text-muted); }
+  .history-team { font-weight: 500; }
+
+  /* Loading */
+  .loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+    gap: 12px;
+  }
+  .spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Error */
+  .error-box {
+    padding: 16px 20px;
+    background: var(--red-bg);
+    color: var(--red);
+    border: 1px solid #fecaca;
+    border-radius: var(--radius);
+    font-size: 0.9rem;
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .header-inner { flex-direction: column; align-items: flex-start; }
+    .content { padding: 16px; }
+    .team-profile { padding: 16px; }
+    .team-profile-icon { width: 56px; height: 56px; }
+    .team-profile-name { font-size: 1.2rem; }
+    .games-table { font-size: 0.8rem; }
+    .games-table td, .games-table th { padding: 8px 6px; }
+    .stat-item { padding: 12px 8px; }
+    .stat-value { font-size: 1.1rem; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useMemo, useCallback } = React;
+
+// ==========================================
+// API Helpers
+// ==========================================
+async function proxyFetch(apiPath) {
+  const target = 'https://www.rebas.tw' + apiPath;
+  const resp = await fetch('/proxy?url=' + encodeURIComponent(target));
+  const ct = resp.headers.get('content-type') || '';
+  if (!ct.includes('json')) throw new Error('API 回傳非 JSON');
+  return resp.json();
+}
+
+function getTeamColors(hexColorStr) {
+  if (!hexColorStr) return { primary: '#999', text: '#fff' };
+  const parts = hexColorStr.split(';');
+  return { primary: parts[0] || '#999', text: parts[1] || '#fff' };
+}
+
+function formatDate(datetimeStr) {
+  if (!datetimeStr) return '-';
+  const d = new Date(datetimeStr);
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${mm}/${dd}`;
+}
+
+// ==========================================
+// Components
+// ==========================================
+function Loading({ message }) {
+  return (
+    <div className="loading-container">
+      <div className="spinner" />
+      <div>{message || '載入中...'}</div>
+    </div>
+  );
+}
+
+function ErrorBox({ message }) {
+  return <div className="error-box">{message}</div>;
+}
+
+function TeamProfile({ team }) {
+  const colors = getTeamColors(team.color);
+  return (
+    <div className="section">
+      <div className="card">
+        <div className="team-color-strip" style={{ background: colors.primary }} />
+        <div className="team-profile">
+          {team.icon_url && (
+            <img
+              className="team-profile-icon"
+              src={team.icon_url}
+              alt={team.name}
+              style={{ borderColor: colors.primary }}
+            />
+          )}
+          <div className="team-profile-info">
+            <div className="team-profile-name">
+              {team.name}
+              <span className="team-profile-abbr">{team.abbr}</span>
+            </div>
+            {team.city && <div className="team-profile-city">{team.city}</div>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StandingsInfo({ seasonData, teamUniqid, seasonTeamUniqid }) {
+  const standings = seasonData?.standings;
+  if (!standings || standings.length === 0) return null;
+
+  // Find this team in standings by season_team_uniqid or team_uniqid
+  const row = standings.find(s =>
+    s.team?.uniqid === seasonTeamUniqid ||
+    s.team?.uniqid === teamUniqid
+  );
+
+  if (!row) return (
+    <div className="section">
+      <div className="section-title">本季戰績</div>
+      <div className="card" style={{ padding: '16px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+        查無此隊伍的戰績資料
+      </div>
+    </div>
+  );
+
+  const stats = [
+    { label: '排名', value: row.order, color: 'var(--accent)' },
+    { label: '勝', value: row.wins, color: 'var(--green)' },
+    { label: '敗', value: row.loses, color: 'var(--red)' },
+    { label: '和', value: row.draws, color: 'var(--text)' },
+    { label: '勝率', value: row.PCT != null ? row.PCT.toFixed(3).replace(/^0/, '') : '-', color: 'var(--text)' },
+    { label: '勝差', value: row.GB === 0 ? '-' : row.GB, color: 'var(--text-muted)' },
+    { label: '已賽', value: row.finished, color: 'var(--text-muted)' },
+  ];
+
+  return (
+    <div className="section">
+      <div className="section-title">本季戰績</div>
+      <div className="card">
+        <div className="stats-grid">
+          {stats.map(s => (
+            <div className="stat-item" key={s.label}>
+              <div className="stat-label">{s.label}</div>
+              <div className="stat-value" style={{ color: s.color }}>{s.value}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RecentGames({ games, teamUniqid }) {
+  if (!games || games.length === 0) return null;
+
+  // Filter games involving this team
+  const teamGames = games.filter(g => {
+    const away = g.info?.away_team?.uniqid || g.away?.team_uniqid;
+    const home = g.info?.home_team?.uniqid || g.home?.team_uniqid;
+    return away === teamUniqid || home === teamUniqid;
+  });
+
+  if (teamGames.length === 0) return null;
+
+  // Sort by datetime descending (most recent first)
+  const sorted = [...teamGames].sort((a, b) => {
+    const da = a.info?.datetime || '';
+    const db = b.info?.datetime || '';
+    return db.localeCompare(da);
+  });
+
+  return (
+    <div className="section">
+      <div className="section-title">賽程與結果（共 {sorted.length} 場）</div>
+      <div className="card" style={{ overflowX: 'auto' }}>
+        <table className="games-table">
+          <thead>
+            <tr>
+              <th>日期</th>
+              <th>主/客</th>
+              <th>對手</th>
+              <th>比數</th>
+              <th>結果</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sorted.map((g, i) => {
+              const awayId = g.info?.away_team?.uniqid || g.away?.team_uniqid;
+              const homeId = g.info?.home_team?.uniqid || g.home?.team_uniqid;
+              const isHome = homeId === teamUniqid;
+              const opponentId = isHome ? awayId : homeId;
+              const opponentName = isHome
+                ? (g.info?.away_team?.name || '?')
+                : (g.info?.home_team?.name || '?');
+
+              const awayScore = g.info?.away_score;
+              const homeScore = g.info?.home_score;
+              const finished = g.info?.status === 'FINISHED';
+
+              let result = null;
+              let resultClass = '';
+              if (finished && g.info?.winner_side) {
+                const won = (isHome && g.info.winner_side === 'HOME') ||
+                            (!isHome && g.info.winner_side === 'AWAY');
+                result = won ? 'W' : 'L';
+                resultClass = won ? 'result-win' : 'result-lose';
+              } else if (finished && !g.info?.winner_side) {
+                result = 'D';
+                resultClass = 'result-draw';
+              }
+
+              const scoreDisplay = (awayScore != null && homeScore != null)
+                ? (isHome ? `${homeScore} - ${awayScore}` : `${awayScore} - ${homeScore}`)
+                : '-';
+
+              return (
+                <tr key={i}>
+                  <td>{formatDate(g.info?.datetime)}</td>
+                  <td>
+                    <span className={isHome ? 'badge-home' : 'badge-away'}>
+                      {isHome ? '主' : '客'}
+                    </span>
+                  </td>
+                  <td>
+                    <a className="opponent-link" href={`/team.html?id=${opponentId}`}>
+                      {opponentName}
+                    </a>
+                  </td>
+                  <td style={{ fontWeight: 600 }}>{scoreDisplay}</td>
+                  <td>
+                    {result
+                      ? <span className={resultClass}>{result}</span>
+                      : <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                          {g.info?.status === 'SCHEDULED' ? '未賽' : g.info?.status || '-'}
+                        </span>
+                    }
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function SeasonHistory({ experiences }) {
+  if (!experiences || experiences.length === 0) return null;
+
+  const sorted = [...experiences].sort((a, b) => b.season_year - a.season_year);
+
+  return (
+    <div className="section">
+      <div className="section-title">歷史賽季</div>
+      <div className="card">
+        <ul className="history-list">
+          {sorted.map((exp, i) => (
+            <li className="history-item" key={i}>
+              <span className="history-year">{exp.season_year}</span>
+              <span className="history-season">{exp.season}</span>
+              <span className="history-team">{exp.team}</span>
+              {exp.is_formal && (
+                <span style={{
+                  fontSize: '0.7rem',
+                  background: 'var(--accent-light)',
+                  color: 'var(--accent)',
+                  padding: '1px 6px',
+                  borderRadius: 'var(--radius)',
+                  fontWeight: 500,
+                }}>正式</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// App
+// ==========================================
+function App() {
+  const teamId = new URLSearchParams(window.location.search).get('id');
+
+  const [team, setTeam] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Season-related state
+  const [selectedSeason, setSelectedSeason] = useState(null);
+  const [seasonData, setSeasonData] = useState(null);
+  const [games, setGames] = useState([]);
+  const [seasonLoading, setSeasonLoading] = useState(false);
+
+  // Formal seasons derived from team experiences
+  const formalSeasons = useMemo(() => {
+    if (!team?.experiences) return [];
+    return team.experiences
+      .filter(e => e.is_formal)
+      .sort((a, b) => b.season_year - a.season_year);
+  }, [team]);
+
+  // Load team data
+  useEffect(() => {
+    if (!teamId) {
+      setError('缺少球隊 ID 參數（請使用 ?id=xxx）');
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    proxyFetch('/api/teams/' + teamId)
+      .then(result => {
+        if (!result.data) throw new Error('找不到此球隊');
+        setTeam(result.data);
+      })
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [teamId]);
+
+  // Set default season when team loads
+  useEffect(() => {
+    if (formalSeasons.length > 0 && !selectedSeason) {
+      setSelectedSeason(formalSeasons[0].season_uniqid);
+    }
+  }, [formalSeasons, selectedSeason]);
+
+  // Load season data when season changes
+  useEffect(() => {
+    if (!selectedSeason) return;
+    setSeasonLoading(true);
+    setSeasonData(null);
+    setGames([]);
+
+    Promise.all([
+      proxyFetch('/api/seasons/' + selectedSeason),
+      proxyFetch('/api/seasons/' + selectedSeason + '/games?type=grouped'),
+    ])
+      .then(([sResult, gResult]) => {
+        setSeasonData(sResult.data);
+        setGames(gResult.data || []);
+      })
+      .catch(() => {
+        setSeasonData(null);
+        setGames([]);
+      })
+      .finally(() => setSeasonLoading(false));
+  }, [selectedSeason]);
+
+  // Find current season_team_uniqid
+  const currentExp = useMemo(() => {
+    if (!formalSeasons.length || !selectedSeason) return null;
+    return formalSeasons.find(e => e.season_uniqid === selectedSeason);
+  }, [formalSeasons, selectedSeason]);
+
+  // Update page title
+  useEffect(() => {
+    if (team) {
+      document.title = team.name + ' — CPBL 球隊資料';
+    }
+  }, [team]);
+
+  if (!teamId) {
+    return (
+      <>
+        <Header />
+        <div className="content">
+          <ErrorBox message="缺少球隊 ID 參數。請使用 ?id=xxx 指定球隊。" />
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Header />
+      <div className="content">
+        {loading && <Loading message="載入球隊資料中..." />}
+        {error && <ErrorBox message={'載入失敗：' + error} />}
+
+        {!loading && !error && team && (
+          <>
+            <TeamProfile team={team} />
+
+            {/* Season Selector */}
+            {formalSeasons.length > 0 && (
+              <div className="section">
+                <div className="section-title">賽季資料</div>
+                <div style={{ marginBottom: '16px' }}>
+                  <select
+                    className="season-select"
+                    value={selectedSeason || ''}
+                    onChange={e => setSelectedSeason(e.target.value)}
+                  >
+                    {formalSeasons.map(exp => (
+                      <option key={exp.season_uniqid} value={exp.season_uniqid}>
+                        {exp.season}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {seasonLoading && <Loading message="載入賽季資料中..." />}
+
+                {!seasonLoading && seasonData && (
+                  <>
+                    <StandingsInfo
+                      seasonData={seasonData}
+                      teamUniqid={teamId}
+                      seasonTeamUniqid={currentExp?.season_team_uniqid}
+                    />
+                    <RecentGames games={games} teamUniqid={teamId} />
+                  </>
+                )}
+              </div>
+            )}
+
+            <SeasonHistory experiences={team.experiences} />
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
+function Header() {
+  return (
+    <div className="header">
+      <div className="header-inner">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <h1><span>CPBL</span> 球隊資料</h1>
+          <a href="/index.html" className="nav-link">API Explorer</a>
+          <a href="/standings.html" className="nav-link">戰績表</a>
+          <a href="/fielding.html" className="nav-link">守備局數</a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

@@ -144,8 +144,12 @@
     flex-shrink: 0;
   }
   .player-name { font-weight: 600; white-space: nowrap; }
+  .player-link { font-weight: 600; white-space: nowrap; color: var(--text); text-decoration: none; }
+  .player-link:hover { color: var(--accent); text-decoration: underline; }
   .player-number { color: var(--text-muted); font-size: 0.78rem; }
   .team-abbr { font-size: 0.8rem; color: var(--text-muted); white-space: nowrap; }
+  .team-link { color: var(--text-muted); text-decoration: none; }
+  .team-link:hover { color: var(--accent); text-decoration: underline; }
   .ip-cell { font-weight: 500; }
   .ip-cell.has-value { color: var(--text); }
   .ip-cell.no-value { color: var(--border); }
@@ -485,25 +489,33 @@ function posOuts(posData) { return posData?.outs || 0; }
 function posPO(posData) { return posData?.po || 0; }
 function posA(posData) { return posData?.a || 0; }
 
-function playerTotals(player) {
+function playerTotals(player, posFilter) {
   let outs = 0, po = 0, a = 0;
-  POSITIONS.forEach(p => {
-    const d = player.positions[p.key];
-    if (d) { outs += d.outs || 0; po += d.po || 0; a += d.a || 0; }
-  });
+  if (posFilter) {
+    const d = player.positions[posFilter];
+    if (d) { outs = d.outs || 0; po = d.po || 0; a = d.a || 0; }
+  } else {
+    POSITIONS.forEach(p => {
+      const d = player.positions[p.key];
+      if (d) { outs += d.outs || 0; po += d.po || 0; a += d.a || 0; }
+    });
+  }
   const ip = outs / 3;
   const rf9 = ip > 0 ? ((po + a) / ip) * 9 : 0;
   return { outs, po, a, rf9 };
 }
 
-function FieldingTable({ data, teamFilter }) {
+function FieldingTable({ data, teamFilter, posFilter, qualFilter, qualOuts }) {
   const [sortKey, setSortKey] = useState('rf9');
   const [sortAsc, setSortAsc] = useState(false);
 
   const filtered = useMemo(() => {
-    if (!teamFilter) return data;
-    return data.filter(p => p.teamUniqid === teamFilter);
-  }, [data, teamFilter]);
+    let list = data;
+    if (teamFilter) list = list.filter(p => p.teamUniqid === teamFilter);
+    if (posFilter) list = list.filter(p => p.positions[posFilter] && p.positions[posFilter].outs > 0);
+    if (qualFilter) list = list.filter(p => playerTotals(p, posFilter).outs >= qualOuts);
+    return list;
+  }, [data, teamFilter, posFilter, qualFilter, qualOuts]);
 
   const sorted = useMemo(() => {
     const list = [...filtered];
@@ -516,13 +528,13 @@ function FieldingTable({ data, teamFilter }) {
         va = a.teamName; vb = b.teamName;
         return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
       } else if (sortKey === 'totalIP') {
-        va = playerTotals(a).outs; vb = playerTotals(b).outs;
+        va = playerTotals(a, posFilter).outs; vb = playerTotals(b, posFilter).outs;
       } else if (sortKey === 'po') {
-        va = playerTotals(a).po; vb = playerTotals(b).po;
+        va = playerTotals(a, posFilter).po; vb = playerTotals(b, posFilter).po;
       } else if (sortKey === 'a') {
-        va = playerTotals(a).a; vb = playerTotals(b).a;
+        va = playerTotals(a, posFilter).a; vb = playerTotals(b, posFilter).a;
       } else if (sortKey === 'rf9') {
-        va = playerTotals(a).rf9; vb = playerTotals(b).rf9;
+        va = playerTotals(a, posFilter).rf9; vb = playerTotals(b, posFilter).rf9;
       } else {
         // Position column: sort by outs at that position
         va = posOuts(a.positions[sortKey]);
@@ -531,7 +543,7 @@ function FieldingTable({ data, teamFilter }) {
       return sortAsc ? va - vb : vb - va;
     });
     return list;
-  }, [filtered, sortKey, sortAsc]);
+  }, [filtered, sortKey, sortAsc, posFilter]);
 
   function handleSort(key) {
     if (sortKey === key) setSortAsc(!sortAsc);
@@ -573,17 +585,19 @@ function FieldingTable({ data, teamFilter }) {
           </thead>
           <tbody>
             {sorted.map(player => {
-              const t = playerTotals(player);
+              const t = playerTotals(player, posFilter);
               return (
                 <tr key={`${player.uniqid}_${player.teamUniqid}`}>
                   <td>
                     <div className="team-cell">
                       <div className="team-color-bar" style={{ background: player.teamColor }} />
-                      <span className="player-name">{player.name}</span>
+                      <a href={`/player.html?id=${player.uniqid}`} className="player-link">{player.name}</a>
                       {player.number && <span className="player-number">#{player.number}</span>}
                     </div>
                   </td>
-                  <td className="team-abbr">{player.teamAbbr || player.teamName}</td>
+                  <td className="team-abbr">
+                    <a href={`/team.html?id=${player.teamUniqid}`} className="team-link">{player.teamAbbr || player.teamName}</a>
+                  </td>
                   {POSITIONS.map(pos => {
                     const d = player.positions[pos.key];
                     const outs = posOuts(d);
@@ -621,6 +635,8 @@ function App() {
   const [error, setError] = useState(null);
   const [finishedCount, setFinishedCount] = useState(0);
   const [teamFilter, setTeamFilter] = useState('');
+  const [posFilter, setPosFilter] = useState('');
+  const [qualFilter, setQualFilter] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -681,10 +697,15 @@ function App() {
     return Object.entries(map).map(([id, t]) => ({ id, ...t })).sort((a, b) => a.name.localeCompare(b.name));
   }, [fieldingData]);
 
+  const qualOuts = finishedCount * 3; // 規定局數 = 總場次 IP, i.e. finishedCount * 3 outs
+
   const playerCount = useMemo(() => {
-    if (!teamFilter) return fieldingData.length;
-    return fieldingData.filter(p => p.teamUniqid === teamFilter).length;
-  }, [fieldingData, teamFilter]);
+    let list = fieldingData;
+    if (teamFilter) list = list.filter(p => p.teamUniqid === teamFilter);
+    if (posFilter) list = list.filter(p => p.positions[posFilter] && p.positions[posFilter].outs > 0);
+    if (qualFilter) list = list.filter(p => playerTotals(p, posFilter).outs >= qualOuts);
+    return list.length;
+  }, [fieldingData, teamFilter, posFilter, qualFilter, qualOuts]);
 
   return (
     <>
@@ -724,8 +745,19 @@ function App() {
                     <option key={t.id} value={t.id}>{t.name}</option>
                   ))}
                 </select>
+                <label style={{ marginLeft: '16px' }}>篩選守位：</label>
+                <select value={posFilter} onChange={e => setPosFilter(e.target.value)}>
+                  <option value="">全部守位</option>
+                  {POSITIONS.map(pos => (
+                    <option key={pos.key} value={pos.key}>{pos.label}</option>
+                  ))}
+                </select>
+                <label style={{ marginLeft: '16px', display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={qualFilter} onChange={e => setQualFilter(e.target.checked)} />
+                  規定局數（≥ {finishedCount} IP）
+                </label>
               </div>
-              <FieldingTable data={fieldingData} teamFilter={teamFilter} />
+              <FieldingTable data={fieldingData} teamFilter={teamFilter} posFilter={posFilter} qualFilter={qualFilter} qualOuts={qualOuts} />
             </div>
           </>
         )}
