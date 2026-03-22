@@ -257,6 +257,128 @@
   .chevron { transition: transform 0.2s; font-size: 0.8rem; color: var(--text-muted); }
   .expanded .chevron { transform: rotate(90deg); }
 
+  /* Login Panel */
+  .login-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
+  .login-panel .panel-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    background: linear-gradient(90deg, #1a3a2e, var(--surface));
+    border-bottom: 1px solid var(--border);
+    user-select: none;
+  }
+  .login-panel .panel-header:hover { opacity: 0.9; }
+  .login-panel .panel-header h3 { font-size: 0.95rem; color: var(--post); }
+  .login-panel .panel-header .hint { font-size: 0.8rem; color: var(--text-muted); }
+  .login-panel-body { padding: 16px; display: none; }
+  .login-panel.open .login-panel-body { display: block; }
+  .login-columns { display: flex; gap: 24px; flex-wrap: wrap; }
+  .login-col { flex: 1; min-width: 280px; }
+  .login-col h4 { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+  .login-field { margin-bottom: 10px; }
+  .login-field label { display: block; font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; }
+  .login-field input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+  }
+  .login-field input:focus { border-color: var(--post); outline: none; }
+  .btn-login {
+    padding: 9px 24px;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn-login:hover { opacity: 0.85; }
+  .btn-login:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-login-email { background: var(--post); color: #000; }
+  .btn-login-google { background: #fff; color: #333; border: 1px solid #ddd !important; }
+  .btn-login-facebook { background: #1877f2; color: #fff; }
+  .btn-login-register { background: transparent; color: var(--text-muted); border: 1px solid var(--border) !important; }
+  .oauth-buttons { display: flex; flex-direction: column; gap: 10px; }
+  .login-status {
+    margin-top: 12px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    display: none;
+  }
+  .login-status.visible { display: block; }
+  .login-status.success { background: rgba(73,204,144,0.15); color: var(--post); border: 1px solid var(--post); }
+  .login-status.error { background: rgba(249,62,62,0.15); color: var(--delete); border: 1px solid var(--delete); }
+  .login-status.info { background: rgba(97,175,254,0.15); color: var(--get); border: 1px solid var(--get); }
+  .token-display {
+    margin-top: 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 10px;
+    display: none;
+  }
+  .token-display.visible { display: block; }
+  .token-display .token-label { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; }
+  .token-display .token-value {
+    font-family: monospace;
+    font-size: 0.75rem;
+    color: var(--post);
+    word-break: break-all;
+    max-height: 60px;
+    overflow: auto;
+  }
+  .token-display .token-actions { margin-top: 8px; display: flex; gap: 8px; }
+  .btn-token-action {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 4px 12px;
+    border-radius: 3px;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+  .btn-token-action:hover { border-color: var(--post); }
+  .user-info-bar {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 16px;
+    background: rgba(73,204,144,0.08);
+    border-bottom: 1px solid rgba(73,204,144,0.2);
+    font-size: 0.85rem;
+  }
+  .user-info-bar.visible { display: flex; }
+  .user-info-bar .ui-status { color: var(--post); font-weight: 600; }
+  .user-info-bar .ui-name { color: var(--text); }
+  .user-info-bar .ui-email { color: var(--text-muted); font-size: 0.8rem; }
+  .btn-logout {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid var(--text-muted);
+    color: var(--text-muted);
+    padding: 2px 10px;
+    border-radius: 3px;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+  .btn-logout:hover { border-color: var(--delete); color: var(--delete); }
+
   /* Player Search Panel */
   .player-search-panel {
     background: var(--surface);
@@ -387,6 +509,12 @@
   </div>
 </header>
 
+<div class="user-info-bar" id="user-info-bar">
+  <span class="ui-status">已登入</span>
+  <span class="ui-name" id="ui-name"></span>
+  <span class="ui-email" id="ui-email"></span>
+  <button class="btn-logout" onclick="doLogout()">登出</button>
+</div>
 <div class="selected-player-bar" id="selected-player-bar">
   <span class="sp-label">已選擇球員：</span>
   <span class="sp-name" id="sp-name"></span>
@@ -396,6 +524,74 @@
 <div class="layout">
   <nav class="sidebar" id="sidebar"></nav>
   <main class="main" id="main">
+    <!-- Login Panel -->
+    <div class="login-panel open" id="login-panel">
+      <div class="panel-header" onclick="document.getElementById('login-panel').classList.toggle('open')">
+        <span class="chevron">&#9654;</span>
+        <h3>登入 Rebas</h3>
+        <span class="hint">登入後取得 Token，即可使用所有需認證的 API</span>
+      </div>
+      <div class="login-panel-body">
+        <div class="login-columns">
+          <!-- Email Login -->
+          <div class="login-col">
+            <h4>Email 登入</h4>
+            <div class="login-field">
+              <label>Email</label>
+              <input type="email" id="login-email" placeholder="your@email.com" onkeydown="if(event.key==='Enter')document.getElementById('login-password').focus()">
+            </div>
+            <div class="login-field">
+              <label>密碼</label>
+              <input type="password" id="login-password" placeholder="密碼" onkeydown="if(event.key==='Enter')doEmailLogin()">
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+              <button class="btn-login btn-login-email" onclick="doEmailLogin()">登入</button>
+              <button class="btn-login btn-login-register" onclick="window.open('https://account.rebas.tw/login?type=register','_blank')">註冊新帳號</button>
+              <button class="btn-login btn-login-register" onclick="doForgetPassword()">忘記密碼</button>
+            </div>
+          </div>
+          <!-- OAuth Login -->
+          <div class="login-col">
+            <h4>社群登入</h4>
+            <div class="oauth-buttons">
+              <button class="btn-login btn-login-google" onclick="doOAuthLogin('google')">
+                <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 009 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.997 8.997 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 6.29C4.672 4.163 6.656 2.58 9 2.58z"/></svg>
+                Google 登入
+              </button>
+              <button class="btn-login btn-login-facebook" onclick="doOAuthLogin('facebook')">
+                <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#fff" d="M18 9a9 9 0 10-10.406 8.89v-6.29H5.309V9h2.285V7.017c0-2.258 1.344-3.504 3.4-3.504.985 0 2.016.176 2.016.176v2.215h-1.136c-1.12 0-1.468.694-1.468 1.406V9h2.496l-.399 2.6h-2.097v6.29A9.002 9.002 0 0018 9z"/></svg>
+                Facebook 登入
+              </button>
+            </div>
+            <div style="margin-top:16px;padding:10px;background:var(--bg);border-radius:4px;font-size:0.8rem;color:var(--text-muted);line-height:1.5">
+              <strong style="color:var(--text)">手動取得 Token：</strong><br>
+              1. 前往 <a href="https://account.rebas.tw/login" target="_blank" style="color:var(--get)">account.rebas.tw/login</a> 登入<br>
+              2. 開啟 DevTools (F12) → Application → Cookies<br>
+              3. 找到 <code style="color:var(--put)">RB_UID</code> 的值<br>
+              4. 貼到上方 Header 的 Bearer Token 欄位
+            </div>
+          </div>
+          <!-- Token Status -->
+          <div class="login-col">
+            <h4>Token 狀態</h4>
+            <div id="token-status-area">
+              <div style="color:var(--text-muted);font-size:0.85rem;">尚未登入</div>
+            </div>
+            <div class="token-display" id="token-display">
+              <div class="token-label">Access Token (RB_UID)</div>
+              <div class="token-value" id="token-value"></div>
+              <div class="token-actions">
+                <button class="btn-token-action" onclick="applyToken()">套用到 Header</button>
+                <button class="btn-token-action" onclick="copyToken()">複製</button>
+              </div>
+            </div>
+            <div class="login-status" id="login-status"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Player Search Panel -->
     <div class="player-search-panel open" id="player-search-panel">
       <div class="panel-header" onclick="document.getElementById('player-search-panel').classList.toggle('open')">
         <span class="chevron">&#9654;</span>
@@ -1037,6 +1233,232 @@ document.getElementById('search-box').addEventListener('input', function() {
 });
 
 // ==========================================
+// Login & Auth
+// ==========================================
+const ACCOUNT_BASE = 'https://account.rebas.tw';
+
+function showLoginStatus(msg, type) {
+  const el = document.getElementById('login-status');
+  el.textContent = msg;
+  el.className = `login-status visible ${type}`;
+}
+
+async function doEmailLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  if (!email || !password) { showLoginStatus('請輸入 Email 和密碼', 'error'); return; }
+
+  showLoginStatus('登入中...', 'info');
+
+  try {
+    const resp = await fetch(`/proxy?url=${encodeURIComponent(ACCOUNT_BASE + '/login')}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+
+    const ct = resp.headers.get('content-type') || '';
+    if (!ct.includes('json')) {
+      // The login endpoint might return HTML (redirect) or set cookies
+      const text = await resp.text();
+      // Check if response contains token in set-cookie or body
+      if (resp.status === 200 || resp.status === 302) {
+        showLoginStatus('伺服器回傳非 JSON。請使用 OAuth 或手動取得 Token。', 'info');
+      } else {
+        showLoginStatus(`登入失敗 (${resp.status})。請改用社群登入或手動取得 Token。`, 'error');
+      }
+      return;
+    }
+
+    const data = await resp.json();
+
+    if (data.token || data.access_token || data.data?.token || data.data?.access_token) {
+      const token = data.token || data.access_token || data.data?.token || data.data?.access_token;
+      onLoginSuccess(token, data);
+    } else if (data.data && typeof data.data === 'string') {
+      // Sometimes token is returned as data.data directly
+      onLoginSuccess(data.data, data);
+    } else if (data.error || data.message) {
+      const msg = data.error || data.message;
+      if (msg.includes('password') || msg.includes('密碼')) {
+        showLoginStatus('密碼錯誤，請重試', 'error');
+      } else if (msg.includes('not found') || msg.includes('找不到')) {
+        showLoginStatus('找不到此帳號，請確認 Email', 'error');
+      } else {
+        showLoginStatus(msg, 'error');
+      }
+    } else {
+      // Might have gotten the token - show the response for debugging
+      showLoginStatus('收到回應，請檢查下方 Token 區域', 'info');
+      document.getElementById('token-value').textContent = JSON.stringify(data, null, 2);
+      document.getElementById('token-display').classList.add('visible');
+    }
+  } catch (err) {
+    showLoginStatus('登入請求失敗：' + err.message, 'error');
+  }
+}
+
+function onLoginSuccess(token, data) {
+  showLoginStatus('登入成功！', 'success');
+
+  // Show token
+  document.getElementById('token-value').textContent = token;
+  document.getElementById('token-display').classList.add('visible');
+
+  // Auto-apply
+  document.getElementById('global-token').value = token;
+
+  // Update token status area
+  updateTokenStatus(token);
+
+  // Fetch user info
+  fetchUserInfo(token);
+
+  // Collapse login panel
+  setTimeout(() => {
+    document.getElementById('login-panel').classList.remove('open');
+  }, 1500);
+}
+
+function applyToken() {
+  const token = document.getElementById('token-value').textContent.trim();
+  if (token && token !== '尚未取得') {
+    document.getElementById('global-token').value = token;
+    showLoginStatus('已套用 Token 到 Header', 'success');
+    fetchUserInfo(token);
+  }
+}
+
+function copyToken() {
+  const token = document.getElementById('token-value').textContent.trim();
+  navigator.clipboard.writeText(token).then(() => {
+    showLoginStatus('已複製到剪貼簿', 'success');
+  });
+}
+
+async function fetchUserInfo(token) {
+  if (!token) return;
+  try {
+    const resp = await fetch(`/proxy?url=${encodeURIComponent('https://www.rebas.tw/api/user/info')}`, {
+      headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' }
+    });
+    const ct = resp.headers.get('content-type') || '';
+    if (ct.includes('json')) {
+      const data = await resp.json();
+      const user = data.data || data;
+      const name = user.nickname || user.name || user.user_name || '';
+      const email = user.email || '';
+
+      if (name || email) {
+        document.getElementById('ui-name').textContent = name;
+        document.getElementById('ui-email').textContent = email ? `(${email})` : '';
+        document.getElementById('user-info-bar').classList.add('visible');
+
+        // Update token status
+        const statusArea = document.getElementById('token-status-area');
+        statusArea.innerHTML = `
+          <div style="color:var(--post);font-weight:600;margin-bottom:4px;">已登入</div>
+          <div style="font-size:0.85rem;">${name}</div>
+          <div style="font-size:0.8rem;color:var(--text-muted)">${email}</div>
+          ${user.avatar_url ? '<img src="'+user.avatar_url+'" style="width:40px;height:40px;border-radius:50%;margin-top:8px;border:2px solid var(--post)">' : ''}
+        `;
+      }
+    }
+  } catch {}
+}
+
+function updateTokenStatus(token) {
+  if (!token) return;
+  // Decode JWT to show expiry
+  try {
+    const parts = token.split('.');
+    if (parts.length === 3) {
+      const payload = JSON.parse(atob(parts[1]));
+      const exp = payload.exp ? new Date(payload.exp * 1000) : null;
+      const statusArea = document.getElementById('token-status-area');
+      statusArea.innerHTML = `
+        <div style="color:var(--post);font-weight:600;margin-bottom:4px;">Token 有效</div>
+        ${exp ? '<div style="font-size:0.8rem;color:var(--text-muted)">到期: ' + exp.toLocaleString('zh-TW') + '</div>' : ''}
+        ${payload.sub ? '<div style="font-size:0.8rem;color:var(--text-muted)">sub: ' + payload.sub + '</div>' : ''}
+      `;
+    }
+  } catch {}
+}
+
+function doOAuthLogin(provider) {
+  const currentUrl = window.location.href;
+  // Open OAuth in popup
+  const authUrl = `${ACCOUNT_BASE}/auth/${provider}?done_url=${encodeURIComponent(currentUrl)}`;
+  const popup = window.open(authUrl, 'rebas-oauth', 'width=500,height=700,scrollbars=yes');
+
+  showLoginStatus(`已開啟 ${provider} 登入視窗...登入完成後回到此頁面，將自動偵測 Token`, 'info');
+
+  // Poll for the popup to close, then check for token
+  const pollTimer = setInterval(() => {
+    if (popup.closed) {
+      clearInterval(pollTimer);
+      showLoginStatus('登入視窗已關閉。如已登入，請手動從 Cookie 取得 RB_UID 並貼到 Bearer Token 欄位。', 'info');
+    }
+  }, 1000);
+}
+
+async function doForgetPassword() {
+  const email = document.getElementById('login-email').value.trim();
+  if (!email) { showLoginStatus('請先輸入 Email', 'error'); return; }
+
+  showLoginStatus('發送重設密碼信件中...', 'info');
+  try {
+    const resp = await fetch(`/proxy?url=${encodeURIComponent(ACCOUNT_BASE + '/api/user/forget_password')}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    const ct = resp.headers.get('content-type') || '';
+    if (ct.includes('json')) {
+      const data = await resp.json();
+      showLoginStatus(data.message || '重設密碼信件已寄出，請檢查信箱', 'success');
+    } else {
+      showLoginStatus('重設密碼信件已寄出（如帳號存在），請檢查信箱', 'success');
+    }
+  } catch (err) {
+    showLoginStatus('請求失敗：' + err.message, 'error');
+  }
+}
+
+function doLogout() {
+  document.getElementById('global-token').value = '';
+  document.getElementById('user-info-bar').classList.remove('visible');
+  document.getElementById('token-display').classList.remove('visible');
+  document.getElementById('token-status-area').innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;">尚未登入</div>';
+  document.getElementById('login-status').className = 'login-status';
+  document.getElementById('login-panel').classList.add('open');
+  showLoginStatus('已登出', 'info');
+}
+
+// On page load: check if token already exists in header input
+function checkExistingToken() {
+  const token = document.getElementById('global-token').value.trim();
+  if (token) {
+    updateTokenStatus(token);
+    fetchUserInfo(token);
+    document.getElementById('token-value').textContent = token;
+    document.getElementById('token-display').classList.add('visible');
+    document.getElementById('login-panel').classList.remove('open');
+  }
+}
+
+// Watch for manual token input changes
+document.getElementById('global-token').addEventListener('change', function() {
+  const token = this.value.trim();
+  if (token) {
+    updateTokenStatus(token);
+    fetchUserInfo(token);
+    document.getElementById('token-value').textContent = token;
+    document.getElementById('token-display').classList.add('visible');
+  }
+});
+
+// ==========================================
 // Player Search
 // ==========================================
 let selectedPlayer = null;
@@ -1251,6 +1673,7 @@ function clearSelectedPlayer() {
 
 populateSeasonSelect();
 buildUI();
+checkExistingToken();
 </script>
 </body>
 </html>
