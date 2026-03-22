@@ -450,13 +450,42 @@ function getTeamColors(hexColorStr) {
   return { bg: parts[0] || '#999', text: parts[1] || '#fff' };
 }
 
-function StandingsTable({ standings, halfSeason, seasonData }) {
+function StandingsTable({ standings, halfSeason, seasonData, games }) {
   const [sortKey, setSortKey] = useState(null);
   const [sortAsc, setSortAsc] = useState(true);
 
-  // Filter by half season if needed
+  // Calculate RS/RA per team from games
+  const teamRunsMap = useMemo(() => {
+    const map = {};
+    (games || []).forEach(g => {
+      if (g.info?.status !== 'FINISHED') return;
+      const awayId = g.away?.team_uniqid;
+      const homeId = g.home?.team_uniqid;
+      const awayRuns = g.away?.runs || 0;
+      const homeRuns = g.home?.runs || 0;
+      if (awayId) {
+        if (!map[awayId]) map[awayId] = { rs: 0, ra: 0 };
+        map[awayId].rs += awayRuns;
+        map[awayId].ra += homeRuns;
+      }
+      if (homeId) {
+        if (!map[homeId]) map[homeId] = { rs: 0, ra: 0 };
+        map[homeId].rs += homeRuns;
+        map[homeId].ra += awayRuns;
+      }
+    });
+    return map;
+  }, [games]);
+
   const displayStandings = useMemo(() => {
-    let list = [...standings];
+    let list = standings.map(row => {
+      const tid = row.team.uniqid;
+      const runs = teamRunsMap[tid] || { rs: 0, ra: 0 };
+      const pyth = (runs.rs > 0 || runs.ra > 0)
+        ? (runs.rs ** 2) / (runs.rs ** 2 + runs.ra ** 2)
+        : 0;
+      return { ...row, RS: runs.rs, RA: runs.ra, PYTH: pyth };
+    });
     if (sortKey) {
       list.sort((a, b) => {
         let va = sortKey === 'team' ? a.team.name : a[sortKey];
@@ -466,7 +495,7 @@ function StandingsTable({ standings, halfSeason, seasonData }) {
       });
     }
     return list;
-  }, [standings, sortKey, sortAsc]);
+  }, [standings, sortKey, sortAsc, teamRunsMap]);
 
   function handleSort(key) {
     if (sortKey === key) {
@@ -484,7 +513,10 @@ function StandingsTable({ standings, halfSeason, seasonData }) {
     { key: 'loses', label: '敗' },
     { key: 'draws', label: '和' },
     { key: 'PCT', label: '勝率' },
+    { key: 'PYTH', label: '預期勝率' },
     { key: 'GB', label: '勝差' },
+    { key: 'RS', label: '得分' },
+    { key: 'RA', label: '失分' },
     { key: 'DIFF', label: '得失分差' },
     { key: 'STRK', label: '連勝敗' },
     { key: 'finished', label: '已賽' },
@@ -522,7 +554,10 @@ function StandingsTable({ standings, halfSeason, seasonData }) {
                 <td className="stat-lose">{row.loses}</td>
                 <td>{row.draws}</td>
                 <td className="stat-pct">{row.PCT.toFixed(3).replace(/^0/, '')}</td>
+                <td style={{ color: 'var(--accent)', fontWeight: 600 }}>{row.PYTH > 0 ? row.PYTH.toFixed(3).replace(/^0/, '') : '-'}</td>
                 <td>{row.GB === 0 ? '-' : row.GB}</td>
+                <td style={{ color: 'var(--green)', fontWeight: 600 }}>{row.RS}</td>
+                <td style={{ color: 'var(--red)', fontWeight: 600 }}>{row.RA}</td>
                 <td style={{ color: row.DIFF > 0 ? 'var(--green)' : row.DIFF < 0 ? 'var(--red)' : 'inherit', fontWeight: 600 }}>
                   {row.DIFF > 0 ? `+${row.DIFF}` : row.DIFF}
                 </td>
@@ -733,6 +768,7 @@ function App() {
               <StandingsTable
                 standings={standings}
                 seasonData={seasonData}
+                games={games}
               />
             </div>
 

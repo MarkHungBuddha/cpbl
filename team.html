@@ -392,11 +392,10 @@ function TeamProfile({ team }) {
   );
 }
 
-function StandingsInfo({ seasonData, teamUniqid, seasonTeamUniqid }) {
+function StandingsInfo({ seasonData, teamUniqid, seasonTeamUniqid, games }) {
   const standings = seasonData?.standings;
   if (!standings || standings.length === 0) return null;
 
-  // Find this team in standings by season_team_uniqid or team_uniqid
   const row = standings.find(s =>
     s.team?.uniqid === seasonTeamUniqid ||
     s.team?.uniqid === teamUniqid
@@ -411,13 +410,44 @@ function StandingsInfo({ seasonData, teamUniqid, seasonTeamUniqid }) {
     </div>
   );
 
+  // Calculate total RS/RA from games
+  let totalRS = 0, totalRA = 0;
+  (games || []).forEach(g => {
+    if (g.info?.status !== 'FINISHED') return;
+    const awayId = g.away?.team_uniqid;
+    const homeId = g.home?.team_uniqid;
+    if (awayId !== teamUniqid && homeId !== teamUniqid) return;
+    const isHome = homeId === teamUniqid;
+    const myRuns = isHome ? (g.home?.runs || 0) : (g.away?.runs || 0);
+    const oppRuns = isHome ? (g.away?.runs || 0) : (g.home?.runs || 0);
+    totalRS += myRuns;
+    totalRA += oppRuns;
+  });
+
+  // Pythagorean expected win%
+  const pyth = (totalRS > 0 || totalRA > 0)
+    ? (totalRS ** 2) / (totalRS ** 2 + totalRA ** 2)
+    : 0;
+
+  const strk = row.STRK;
+  const strkText = strk > 0 ? `${strk}連勝` : strk < 0 ? `${Math.abs(strk)}連敗` : '-';
+  const strkColor = strk > 0 ? 'var(--green)' : strk < 0 ? 'var(--red)' : 'var(--text-muted)';
+  const diffColor = row.DIFF > 0 ? 'var(--green)' : row.DIFF < 0 ? 'var(--red)' : 'var(--text)';
+  const pctVal = row.PCT != null ? row.PCT.toFixed(3).replace(/^0/, '') : '-';
+  const pythVal = pyth > 0 ? pyth.toFixed(3).replace(/^0/, '') : '-';
+
   const stats = [
     { label: '排名', value: row.order, color: 'var(--accent)' },
     { label: '勝', value: row.wins, color: 'var(--green)' },
     { label: '敗', value: row.loses, color: 'var(--red)' },
     { label: '和', value: row.draws, color: 'var(--text)' },
-    { label: '勝率', value: row.PCT != null ? row.PCT.toFixed(3).replace(/^0/, '') : '-', color: 'var(--text)' },
+    { label: '實際勝率', value: pctVal, color: 'var(--text)' },
+    { label: '預期勝率', value: pythVal, color: 'var(--accent)' },
     { label: '勝差', value: row.GB === 0 ? '-' : row.GB, color: 'var(--text-muted)' },
+    { label: '總得分', value: totalRS, color: 'var(--green)' },
+    { label: '總失分', value: totalRA, color: 'var(--red)' },
+    { label: '得失分差', value: row.DIFF > 0 ? `+${row.DIFF}` : row.DIFF, color: diffColor },
+    { label: '連勝敗', value: strkText, color: strkColor },
     { label: '已賽', value: row.finished, color: 'var(--text-muted)' },
   ];
 
@@ -452,14 +482,35 @@ function RecentGames({ games, teamUniqid }) {
 
   // Sort by datetime descending (most recent first)
   const sorted = [...teamGames].sort((a, b) => {
-    const da = a.info?.datetime || '';
-    const db = b.info?.datetime || '';
+    const da = a.info?.datetime || a.info?.scheduled_start_at || '';
+    const db = b.info?.datetime || b.info?.scheduled_start_at || '';
     return db.localeCompare(da);
+  });
+
+  // Calculate W/L/D summary
+  let wins = 0, losses = 0, draws = 0;
+  teamGames.forEach(g => {
+    if (g.info?.status !== 'FINISHED') return;
+    const isHome = (g.info?.home_team?.uniqid || g.home?.team_uniqid) === teamUniqid;
+    if (g.info?.winner_side) {
+      const won = (isHome && g.info.winner_side === 'HOME') || (!isHome && g.info.winner_side === 'AWAY');
+      if (won) wins++; else losses++;
+    } else {
+      draws++;
+    }
   });
 
   return (
     <div className="section">
-      <div className="section-title">賽程與結果（共 {sorted.length} 場）</div>
+      <div className="section-title">
+        賽程與結果（共 {sorted.length} 場）
+        <span style={{ fontSize: '0.85rem', fontWeight: 400, color: 'var(--text-muted)', marginLeft: 8 }}>
+          <span style={{ color: 'var(--green)', fontWeight: 600 }}>{wins}W</span>
+          {' - '}
+          <span style={{ color: 'var(--red)', fontWeight: 600 }}>{losses}L</span>
+          {draws > 0 && <>{' - '}<span style={{ fontWeight: 600 }}>{draws}D</span></>}
+        </span>
+      </div>
       <div className="card" style={{ overflowX: 'auto' }}>
         <table className="games-table">
           <thead>
@@ -468,7 +519,11 @@ function RecentGames({ games, teamUniqid }) {
               <th>主/客</th>
               <th>對手</th>
               <th>比數</th>
+              <th>R</th>
+              <th>H</th>
+              <th>E</th>
               <th>結果</th>
+              <th>球場</th>
             </tr>
           </thead>
           <tbody>
@@ -478,12 +533,19 @@ function RecentGames({ games, teamUniqid }) {
               const isHome = homeId === teamUniqid;
               const opponentId = isHome ? awayId : homeId;
               const opponentName = isHome
-                ? (g.info?.away_team?.name || '?')
-                : (g.info?.home_team?.name || '?');
+                ? (g.info?.away_team?.name || g.away?.team || '?')
+                : (g.info?.home_team?.name || g.home?.team || '?');
 
-              const awayScore = g.info?.away_score;
-              const homeScore = g.info?.home_score;
+              const myTeam = isHome ? g.home : g.away;
+              const oppTeam = isHome ? g.away : g.home;
+              const myRuns = myTeam?.runs ?? '-';
+              const myHits = myTeam?.hits ?? '-';
+              const myErrors = myTeam?.errors ?? '-';
               const finished = g.info?.status === 'FINISHED';
+
+              const scoreDisplay = (myTeam?.runs != null && oppTeam?.runs != null)
+                ? `${myTeam.runs} - ${oppTeam.runs}`
+                : '-';
 
               let result = null;
               let resultClass = '';
@@ -497,13 +559,11 @@ function RecentGames({ games, teamUniqid }) {
                 resultClass = 'result-draw';
               }
 
-              const scoreDisplay = (awayScore != null && homeScore != null)
-                ? (isHome ? `${homeScore} - ${awayScore}` : `${awayScore} - ${homeScore}`)
-                : '-';
+              const location = g.info?.location_abbr || '';
 
               return (
                 <tr key={i}>
-                  <td>{formatDate(g.info?.datetime)}</td>
+                  <td>{formatDate(g.info?.datetime || g.info?.scheduled_start_at)}</td>
                   <td>
                     <span className={isHome ? 'badge-home' : 'badge-away'}>
                       {isHome ? '主' : '客'}
@@ -515,6 +575,9 @@ function RecentGames({ games, teamUniqid }) {
                     </a>
                   </td>
                   <td style={{ fontWeight: 600 }}>{scoreDisplay}</td>
+                  <td>{myRuns}</td>
+                  <td>{myHits}</td>
+                  <td>{myErrors}</td>
                   <td>
                     {result
                       ? <span className={resultClass}>{result}</span>
@@ -523,6 +586,7 @@ function RecentGames({ games, teamUniqid }) {
                         </span>
                     }
                   </td>
+                  <td style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{location}</td>
                 </tr>
               );
             })}
@@ -698,6 +762,7 @@ function App() {
                       seasonData={seasonData}
                       teamUniqid={teamId}
                       seasonTeamUniqid={currentExp?.season_team_uniqid}
+                      games={games}
                     />
                     <RecentGames games={games} teamUniqid={teamId} />
                   </>

@@ -208,6 +208,65 @@
     color: var(--text);
   }
 
+  /* Season Stats Table */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .stats-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+    min-width: 700px;
+  }
+  .stats-table th {
+    padding: 8px 6px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+  }
+  .stats-table th:hover { color: var(--accent); }
+  .stats-table th.sorted { color: var(--accent); }
+  .stats-table th:first-child, .stats-table th:nth-child(2) { text-align: left; }
+  .stats-table td {
+    padding: 8px 6px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .stats-table td:first-child, .stats-table td:nth-child(2) { text-align: left; }
+  .stats-table tr:last-child td { border-bottom: none; }
+  .stats-table tr:hover { background: var(--accent-light); }
+  .stats-table .highlight { font-weight: 700; color: var(--accent); }
+
+  /* Tab Bar */
+  .tab-bar {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    overflow-x: auto;
+  }
+  .tab-bar button {
+    padding: 10px 16px;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+  }
+  .tab-bar button:hover { color: var(--text); }
+  .tab-bar button.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+
   /* Experience list */
   .exp-group { margin-bottom: 16px; }
   .exp-year {
@@ -272,6 +331,8 @@
     .profile-meta { justify-content: center; }
     .profile-avatar, .profile-avatar-placeholder { width: 96px; height: 96px; }
     .summary-grid { grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); }
+    .stats-table { font-size: 0.78rem; }
+    .stats-table td, .stats-table th { padding: 6px 4px; }
   }
 </style>
 </head>
@@ -409,17 +470,29 @@ function ProfileCard({ player }) {
 
 /* ---- Summary Stats ---- */
 function BattingSummary({ batting }) {
+  const ops = (batting.OBP || 0) + (batting.SLG || 0);
   const items = [
     { label: 'AVG', value: formatAvg(batting.AVG) },
     { label: 'OBP', value: formatAvg(batting.OBP) },
     { label: 'SLG', value: formatAvg(batting.SLG) },
+    { label: 'OPS', value: formatAvg(ops) },
     { label: 'PA', value: batting.PA },
+    { label: 'AB', value: batting.AB },
     { label: 'H', value: batting.H },
+    { label: '2B', value: batting['2B'] },
+    { label: '3B', value: batting['3B'] },
     { label: 'HR', value: batting.HR },
     { label: 'RBI', value: batting.RBI },
+    { label: 'R', value: batting.R },
     { label: 'BB', value: batting.BB },
+    { label: 'IBB', value: batting.IBB },
+    { label: 'HBP', value: batting.HBP },
     { label: 'SO', value: batting.SO },
     { label: 'SB', value: batting.SB },
+    { label: 'CS', value: batting.CS },
+    { label: 'GIDP', value: batting.GIDP },
+    { label: 'SH', value: batting.SH },
+    { label: 'SF', value: batting.SF },
   ];
   return (
     <div className="section">
@@ -442,14 +515,22 @@ function PitchingSummary({ pitching }) {
   const items = [
     { label: 'ERA', value: formatRate(pitching.ERA) },
     { label: 'WHIP', value: formatRate(pitching.WHIP) },
+    { label: 'FIP', value: pitching.FIP ? formatRate(pitching.FIP) : '---' },
     { label: 'W', value: pitching.Win },
     { label: 'L', value: pitching.Lose },
     { label: 'SV', value: pitching.Save },
     { label: 'HLD', value: pitching.Hold },
+    { label: 'BS', value: pitching.BlownSave },
     { label: 'IP', value: formatIP(pitching.IP_out) },
-    { label: 'SO', value: pitching.SO },
-    { label: 'BB', value: pitching.BB },
+    { label: 'BF', value: pitching.BF },
+    { label: 'H', value: pitching.H },
     { label: 'HR', value: pitching.HR },
+    { label: 'BB', value: pitching.BB },
+    { label: 'IBB', value: pitching.IBB },
+    { label: 'HB', value: pitching.HB },
+    { label: 'SO', value: pitching.SO },
+    { label: 'R', value: pitching.R },
+    { label: 'ER', value: pitching.ER },
   ];
   return (
     <div className="section">
@@ -468,13 +549,290 @@ function PitchingSummary({ pitching }) {
   );
 }
 
-/* ---- Season-by-Season Table ---- */
+/* ---- Season-by-Season Tables ---- */
+function StatsTable({ columns, rows }) {
+  const [sortKey, setSortKey] = useState(null);
+  const [sortDir, setSortDir] = useState('desc');
+
+  function handleSort(key) {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortKey(key); setSortDir(key === 'season' || key === 'team' ? 'asc' : 'desc'); }
+  }
+
+  const sorted = useMemo(() => {
+    if (!sortKey) return rows;
+    return [...rows].sort((a, b) => {
+      let va = a[sortKey], vb = b[sortKey];
+      if (va == null) va = -Infinity;
+      if (vb == null) vb = -Infinity;
+      if (typeof va === 'string') return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+      return sortDir === 'asc' ? va - vb : vb - va;
+    });
+  }, [rows, sortKey, sortDir]);
+
+  return (
+    <div className="table-scroll">
+      <table className="stats-table">
+        <thead>
+          <tr>
+            {columns.map(col => (
+              <th key={col.key} className={sortKey === col.key ? 'sorted' : ''} onClick={() => handleSort(col.key)}>
+                {col.label}{sortKey === col.key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((row, i) => (
+            <tr key={i}>
+              {columns.map(col => (
+                <td key={col.key} className={col.highlight ? 'highlight' : ''}>
+                  {col.render ? col.render(row[col.key], row) : (row[col.key] ?? '---')}
+                </td>
+              ))}
+            </tr>
+          ))}
+          {sorted.length === 0 && (
+            <tr><td colSpan={columns.length} style={{ color: 'var(--text-muted)', padding: 24, textAlign: 'center' }}>無資料</td></tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function BattingSeasonSection({ seasonStats }) {
+  const [tab, setTab] = useState('standard');
+
+  const entries = seasonStats.filter(e => e.batting && e.batting.standard && e.batting.standard.PA > 0);
+  if (entries.length === 0) return null;
+
+  const makeRow = (e, section) => ({
+    season: e.season || '',
+    team: e.team || '',
+    teamColor: e.team_color || '',
+    teamUniqid: e.team_uniqid || '',
+    _year: e.season_year || 0,
+    ...e.batting[section],
+  });
+
+  const standardCols = [
+    { key: 'season', label: '球季', render: v => <span style={{ whiteSpace: 'nowrap' }}>{v}</span> },
+    { key: 'team', label: '球隊', render: (v, r) => (
+      <a href={`/team.html?id=${r.teamUniqid}`} style={{ display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap', color: 'var(--text)', textDecoration: 'none' }}>
+        <span style={{ width: 4, height: 14, borderRadius: 2, background: (r.teamColor || '').split(';')[0] || 'var(--text-muted)', flexShrink: 0 }} />
+        {v}
+      </a>
+    )},
+    { key: 'games', label: 'G' },
+    { key: 'PA', label: 'PA' },
+    { key: 'AB', label: 'AB' },
+    { key: 'H', label: 'H' },
+    { key: 'Double', label: '2B' },
+    { key: 'Triple', label: '3B' },
+    { key: 'HR', label: 'HR' },
+    { key: 'RBI', label: 'RBI' },
+    { key: 'R', label: 'R' },
+    { key: 'BB', label: 'BB' },
+    { key: 'IBB', label: 'IBB' },
+    { key: 'HBP', label: 'HBP' },
+    { key: 'SO', label: 'SO' },
+    { key: 'SB', label: 'SB' },
+    { key: 'CS', label: 'CS' },
+    { key: 'SH', label: 'SH' },
+    { key: 'SF', label: 'SF' },
+    { key: 'GIDP', label: 'GIDP' },
+    { key: 'AVG', label: 'AVG', render: v => formatAvg(v), highlight: true },
+  ];
+
+  const advancedCols = [
+    { key: 'season', label: '球季', render: v => <span style={{ whiteSpace: 'nowrap' }}>{v}</span> },
+    { key: 'team', label: '球隊', render: (v, r) => (
+      <a href={`/team.html?id=${r.teamUniqid}`} style={{ display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap', color: 'var(--text)', textDecoration: 'none' }}>
+        <span style={{ width: 4, height: 14, borderRadius: 2, background: (r.teamColor || '').split(';')[0] || 'var(--text-muted)', flexShrink: 0 }} />
+        {v}
+      </a>
+    )},
+    { key: 'games', label: 'G' },
+    { key: 'PA', label: 'PA' },
+    { key: 'AVG', label: 'AVG', render: v => formatAvg(v) },
+    { key: 'OBP', label: 'OBP', render: v => formatAvg(v) },
+    { key: 'SLG', label: 'SLG', render: v => formatAvg(v) },
+    { key: 'OPS', label: 'OPS', render: v => formatAvg(v), highlight: true },
+    { key: 'OPSplus', label: 'OPS+', highlight: true },
+    { key: 'ISO', label: 'ISO', render: v => formatAvg(v) },
+    { key: 'BABIP', label: 'BABIP', render: v => formatAvg(v) },
+    { key: 'wOBA', label: 'wOBA', render: v => formatAvg(v) },
+    { key: 'RC', label: 'RC', render: v => v != null ? v.toFixed(1) : '---' },
+    { key: 'Kp', label: 'K%', render: v => v != null ? v.toFixed(1) : '---' },
+    { key: 'BBp', label: 'BB%', render: v => v != null ? v.toFixed(1) : '---' },
+    { key: 'BBK', label: 'BB/K', render: v => v != null ? v.toFixed(2) : '---' },
+    { key: 'GBp', label: 'GB%', render: v => v != null ? v.toFixed(1) : '---' },
+    { key: 'SBp', label: 'SB%', render: v => v != null ? v.toFixed(1) : '---' },
+  ];
+
+  const newCols = [
+    { key: 'season', label: '球季', render: v => <span style={{ whiteSpace: 'nowrap' }}>{v}</span> },
+    { key: 'team', label: '球隊', render: (v, r) => (
+      <a href={`/team.html?id=${r.teamUniqid}`} style={{ display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap', color: 'var(--text)', textDecoration: 'none' }}>
+        <span style={{ width: 4, height: 14, borderRadius: 2, background: (r.teamColor || '').split(';')[0] || 'var(--text-muted)', flexShrink: 0 }} />
+        {v}
+      </a>
+    )},
+    { key: 'games', label: 'G' },
+    { key: 'PA', label: 'PA' },
+    { key: 'OPS', label: 'OPS', render: v => formatAvg(v) },
+    { key: 'OPSplus', label: 'OPS+' },
+    { key: 'WPA', label: 'WPA', render: v => v != null ? v.toFixed(3) : '---', highlight: true },
+    { key: 'PosWPA', label: '+WPA', render: v => v != null ? v.toFixed(3) : '---' },
+    { key: 'NegWPA', label: '-WPA', render: v => v != null ? v.toFixed(3) : '---' },
+    { key: 'RE24', label: 'RE24', render: v => v != null ? v.toFixed(2) : '---' },
+  ];
+
+  const tabs = [
+    { id: 'standard', label: '基本數據' },
+    { id: 'advanced', label: '進階數據' },
+    { id: 'new', label: '賽伯計量' },
+  ];
+
+  const colsMap = { standard: standardCols, advanced: advancedCols, new: newCols };
+  const rows = entries.map(e => makeRow(e, tab));
+
+  return (
+    <div className="section">
+      <div className="section-title">逐季打擊成績</div>
+      <div className="card">
+        <div className="tab-bar">
+          {tabs.map(t => (
+            <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => setTab(t.id)}>{t.label}</button>
+          ))}
+        </div>
+        <StatsTable columns={colsMap[tab]} rows={rows} />
+      </div>
+    </div>
+  );
+}
+
+function PitchingSeasonSection({ seasonStats }) {
+  const [tab, setTab] = useState('standard');
+
+  const entries = seasonStats.filter(e => e.pitching && e.pitching.standard && e.pitching.standard.IPOut > 0);
+  if (entries.length === 0) return null;
+
+  const makeRow = (e, section) => ({
+    season: e.season || '',
+    team: e.team || '',
+    teamColor: e.team_color || '',
+    teamUniqid: e.team_uniqid || '',
+    _year: e.season_year || 0,
+    ...e.pitching[section],
+  });
+
+  const standardCols = [
+    { key: 'season', label: '球季', render: v => <span style={{ whiteSpace: 'nowrap' }}>{v}</span> },
+    { key: 'team', label: '球隊', render: (v, r) => (
+      <a href={`/team.html?id=${r.teamUniqid}`} style={{ display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap', color: 'var(--text)', textDecoration: 'none' }}>
+        <span style={{ width: 4, height: 14, borderRadius: 2, background: (r.teamColor || '').split(';')[0] || 'var(--text-muted)', flexShrink: 0 }} />
+        {v}
+      </a>
+    )},
+    { key: 'games', label: 'G' },
+    { key: 'SP', label: 'GS' },
+    { key: 'IPOut', label: 'IP', render: v => formatIP(v) },
+    { key: 'R_W', label: 'W' },
+    { key: 'R_L', label: 'L' },
+    { key: 'R_SV', label: 'SV' },
+    { key: 'R_H', label: 'HLD' },
+    { key: 'R_BS', label: 'BS' },
+    { key: 'BF', label: 'BF' },
+    { key: 'NP', label: 'NP' },
+    { key: 'H', label: 'H' },
+    { key: 'Double', label: '2B' },
+    { key: 'Triple', label: '3B' },
+    { key: 'HR', label: 'HR' },
+    { key: 'BB', label: 'BB' },
+    { key: 'IBB', label: 'IBB' },
+    { key: 'SO', label: 'SO' },
+    { key: 'R', label: 'R' },
+    { key: 'ER', label: 'ER' },
+    { key: 'ERA', label: 'ERA', render: v => formatRate(v), highlight: true },
+  ];
+
+  const advancedCols = [
+    { key: 'season', label: '球季', render: v => <span style={{ whiteSpace: 'nowrap' }}>{v}</span> },
+    { key: 'team', label: '球隊', render: (v, r) => (
+      <a href={`/team.html?id=${r.teamUniqid}`} style={{ display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap', color: 'var(--text)', textDecoration: 'none' }}>
+        <span style={{ width: 4, height: 14, borderRadius: 2, background: (r.teamColor || '').split(';')[0] || 'var(--text-muted)', flexShrink: 0 }} />
+        {v}
+      </a>
+    )},
+    { key: 'games', label: 'G' },
+    { key: 'IPOut', label: 'IP', render: v => formatIP(v) },
+    { key: 'ERA', label: 'ERA', render: v => formatRate(v) },
+    { key: 'ERAplus', label: 'ERA+', highlight: true },
+    { key: 'FIP', label: 'FIP', render: v => formatRate(v), highlight: true },
+    { key: 'WHIP', label: 'WHIP', render: v => formatRate(v) },
+    { key: 'AVG', label: 'AVG', render: v => formatAvg(v) },
+    { key: 'OBP', label: 'OBP', render: v => formatAvg(v) },
+    { key: 'SLG', label: 'SLG', render: v => formatAvg(v) },
+    { key: 'BABIP', label: 'BABIP', render: v => formatAvg(v) },
+    { key: 'Kp', label: 'K%', render: v => v != null ? v.toFixed(1) : '---' },
+    { key: 'BBp', label: 'BB%', render: v => v != null ? v.toFixed(1) : '---' },
+    { key: 'BBK', label: 'BB/K', render: v => v != null ? v.toFixed(2) : '---' },
+    { key: 'SO9', label: 'K/9', render: v => v != null ? v.toFixed(2) : '---' },
+    { key: 'BB9', label: 'BB/9', render: v => v != null ? v.toFixed(2) : '---' },
+    { key: 'H9', label: 'H/9', render: v => v != null ? v.toFixed(2) : '---' },
+    { key: 'HR9', label: 'HR/9', render: v => v != null ? v.toFixed(2) : '---' },
+    { key: 'GBp', label: 'GB%', render: v => v != null ? v.toFixed(1) : '---' },
+    { key: 'LOBp', label: 'LOB%', render: v => v != null ? v.toFixed(1) : '---' },
+  ];
+
+  const newCols = [
+    { key: 'season', label: '球季', render: v => <span style={{ whiteSpace: 'nowrap' }}>{v}</span> },
+    { key: 'team', label: '球隊', render: (v, r) => (
+      <a href={`/team.html?id=${r.teamUniqid}`} style={{ display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap', color: 'var(--text)', textDecoration: 'none' }}>
+        <span style={{ width: 4, height: 14, borderRadius: 2, background: (r.teamColor || '').split(';')[0] || 'var(--text-muted)', flexShrink: 0 }} />
+        {v}
+      </a>
+    )},
+    { key: 'games', label: 'G' },
+    { key: 'IPOut', label: 'IP', render: v => formatIP(v) },
+    { key: 'ERA', label: 'ERA', render: v => formatRate(v) },
+    { key: 'ERAplus', label: 'ERA+' },
+    { key: 'WPA', label: 'WPA', render: v => v != null ? v.toFixed(3) : '---', highlight: true },
+    { key: 'PosWPA', label: '+WPA', render: v => v != null ? v.toFixed(3) : '---' },
+    { key: 'NegWPA', label: '-WPA', render: v => v != null ? v.toFixed(3) : '---' },
+    { key: 'RE24', label: 'RE24', render: v => v != null ? v.toFixed(2) : '---' },
+  ];
+
+  const tabs = [
+    { id: 'standard', label: '基本數據' },
+    { id: 'advanced', label: '進階數據' },
+    { id: 'new', label: '賽伯計量' },
+  ];
+
+  const colsMap = { standard: standardCols, advanced: advancedCols, new: newCols };
+  const rows = entries.map(e => makeRow(e, tab));
+
+  return (
+    <div className="section">
+      <div className="section-title">逐季投球成績</div>
+      <div className="card">
+        <div className="tab-bar">
+          {tabs.map(t => (
+            <button key={t.id} className={tab === t.id ? 'active' : ''} onClick={() => setTab(t.id)}>{t.label}</button>
+          ))}
+        </div>
+        <StatsTable columns={colsMap[tab]} rows={rows} />
+      </div>
+    </div>
+  );
+}
 
 /* ---- Experience History ---- */
 function ExperienceHistory({ experiences }) {
   if (!experiences || experiences.length === 0) return null;
 
-  // group by year
   const groups = {};
   experiences.forEach(exp => {
     const year = exp.season_year || '其他';
@@ -499,7 +857,7 @@ function ExperienceHistory({ experiences }) {
                 return (
                   <div key={i} className="exp-item">
                     <span className="exp-dot" style={{ background: primary }} />
-                    <span className="exp-team" style={{ color: primary }}>{exp.team}</span>
+                    <a href={`/team.html?id=${exp.team_uniqid}`} className="exp-team" style={{ color: primary, textDecoration: 'none' }}>{exp.team}</a>
                     <span className="exp-season">{exp.season}</span>
                     {exp.number && <span className="exp-number">#{exp.number}</span>}
                   </div>
@@ -517,6 +875,7 @@ function ExperienceHistory({ experiences }) {
 function App() {
   const [player, setPlayer] = useState(null);
   const [stats, setStats] = useState(null);
+  const [seasonStats, setSeasonStats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -529,15 +888,19 @@ function App() {
       return;
     }
 
-    document.title = `球員資料 — CPBL`;
+    document.title = '球員資料 — CPBL';
 
     Promise.all([
       proxyFetch(`/api/players/${playerId}`),
       proxyFetch(`/api/players/${playerId}/stats`),
-    ]).then(([pRes, sRes]) => {
+      proxyFetch(`/api/formal/players/${playerId}/season_stats`).catch(() => []),
+    ]).then(([pRes, sRes, ssRes]) => {
       if (!pRes.data) throw new Error('找不到球員資料');
       setPlayer(pRes.data);
       setStats(sRes.data);
+      // season_stats is an array directly (no .data wrapper)
+      const ss = Array.isArray(ssRes) ? ssRes : (ssRes.data || ssRes || []);
+      setSeasonStats(ss);
       document.title = `${pRes.data.name} — CPBL 球員資料`;
     }).catch(err => {
       setError(err.message || '載入失敗');
@@ -575,6 +938,9 @@ function App() {
   const hasBatting = history?.batting && history.batting.PA > 0;
   const hasPitching = history?.pitching && history.pitching.IP_out > 0;
 
+  // Sort season stats: most recent first
+  const sortedSeasonStats = [...seasonStats].sort((a, b) => (b.season_year || 0) - (a.season_year || 0));
+
   return (
     <div>
       <Header />
@@ -584,6 +950,8 @@ function App() {
         {hasBatting && <BattingSummary batting={history.batting} />}
         {hasPitching && <PitchingSummary pitching={history.pitching} />}
 
+        <BattingSeasonSection seasonStats={sortedSeasonStats} />
+        <PitchingSeasonSection seasonStats={sortedSeasonStats} />
 
         <ExperienceHistory experiences={player.experiences} />
       </div>
