@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rebas API Explorer</title>
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --surface: #16213e;
+    --surface2: #0f3460;
+    --accent: #e94560;
+    --accent2: #533483;
+    --text: #eee;
+    --text-muted: #999;
+    --get: #61affe;
+    --post: #49cc90;
+    --put: #fca130;
+    --delete: #f93e3e;
+    --border: #2a2a4a;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  header {
+    background: linear-gradient(135deg, var(--surface), var(--accent2));
+    padding: 24px 32px;
+    border-bottom: 2px solid var(--accent);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  header h1 { font-size: 1.6rem; }
+  header p { color: var(--text-muted); font-size: 0.9rem; margin-top: 4px; }
+  .header-controls {
+    display: flex;
+    gap: 12px;
+    margin-top: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .header-controls label { font-size: 0.85rem; color: var(--text-muted); }
+  .header-controls input, .header-controls select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+  }
+  .header-controls input[type="text"] { width: 320px; }
+  #search-box { width: 240px; }
+  .layout { display: flex; min-height: calc(100vh - 140px); }
+  .sidebar {
+    width: 260px;
+    min-width: 260px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    position: sticky;
+    top: 140px;
+    height: calc(100vh - 140px);
+  }
+  .sidebar .group-title {
+    padding: 12px 16px 6px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--accent);
+    font-weight: 700;
+    border-top: 1px solid var(--border);
+  }
+  .sidebar .group-title:first-child { border-top: none; }
+  .sidebar a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.8rem;
+    transition: background 0.15s;
+    cursor: pointer;
+  }
+  .sidebar a:hover { background: var(--surface2); color: var(--text); }
+  .sidebar a .method-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 3px;
+    min-width: 36px;
+    text-align: center;
+  }
+  .main { flex: 1; padding: 24px 32px; overflow-y: auto; }
+  .api-group { margin-bottom: 32px; }
+  .api-group h2 {
+    font-size: 1.2rem;
+    color: var(--accent);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+    margin-bottom: 16px;
+  }
+  .api-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .api-card:hover { border-color: var(--accent); }
+  .api-card.expanded { border-color: var(--accent); }
+  .api-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .api-card-header:hover { background: rgba(255,255,255,0.03); }
+  .method-badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 4px;
+    min-width: 52px;
+    text-align: center;
+    text-transform: uppercase;
+  }
+  .method-GET { background: var(--get); color: #000; }
+  .method-POST { background: var(--post); color: #000; }
+  .method-PUT { background: var(--put); color: #000; }
+  .method-DELETE { background: var(--delete); color: #fff; }
+  .api-path { font-family: 'Consolas', 'Fira Code', monospace; font-size: 0.9rem; flex: 1; }
+  .api-desc { color: var(--text-muted); font-size: 0.85rem; }
+  .api-card-body {
+    display: none;
+    padding: 16px;
+    border-top: 1px solid var(--border);
+    background: rgba(0,0,0,0.2);
+  }
+  .api-card.expanded .api-card-body { display: block; }
+  .param-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+    align-items: center;
+  }
+  .param-row label {
+    min-width: 160px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-family: monospace;
+  }
+  .param-row input, .param-row select {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-family: monospace;
+  }
+  .param-row .param-hint {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    min-width: 120px;
+  }
+  .body-editor {
+    width: 100%;
+    min-height: 100px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px;
+    border-radius: 4px;
+    font-family: 'Consolas', monospace;
+    font-size: 0.85rem;
+    resize: vertical;
+    margin-bottom: 12px;
+  }
+  .btn-send {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 8px 24px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .btn-send:hover { opacity: 0.85; }
+  .btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
+  .response-area {
+    margin-top: 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    display: none;
+  }
+  .response-area.visible { display: block; }
+  .response-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: rgba(255,255,255,0.05);
+    border-bottom: 1px solid var(--border);
+    font-size: 0.8rem;
+  }
+  .status-code { font-weight: 700; padding: 2px 8px; border-radius: 3px; }
+  .status-2xx { background: var(--post); color: #000; }
+  .status-4xx { background: var(--put); color: #000; }
+  .status-5xx { background: var(--delete); color: #fff; }
+  .status-0xx { background: var(--text-muted); color: #000; }
+  .response-body {
+    padding: 12px;
+    max-height: 400px;
+    overflow: auto;
+    font-family: 'Consolas', monospace;
+    font-size: 0.8rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .section-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .param-row select {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-family: monospace;
+  }
+  .param-row select optgroup { color: var(--accent); font-weight: 700; }
+  .param-row select option { color: var(--text); font-weight: 400; }
+  .param-row input[data-manual] {
+    border-left: 2px solid var(--accent) !important;
+  }
+  .hidden { display: none !important; }
+  .chevron { transition: transform 0.2s; font-size: 0.8rem; color: var(--text-muted); }
+  .expanded .chevron { transform: rotate(90deg); }
+  @media (max-width: 900px) {
+    .sidebar { display: none; }
+    .main { padding: 16px; }
+    .header-controls input[type="text"] { width: 200px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Rebas 野球革命 — API Explorer</h1>
+  <p>CPBL 棒球數據分析平台 API 互動式測試工具</p>
+  <div class="header-controls">
+    <label>Base URL:</label>
+    <select id="base-url-select">
+      <option value="https://www.rebas.tw">www.rebas.tw</option>
+      <option value="https://account.rebas.tw">account.rebas.tw</option>
+      <option value="https://entertainment.rebas.tw">entertainment.rebas.tw</option>
+      <option value="https://blog.rebas.tw">blog.rebas.tw</option>
+      <option value="https://share.rebas.tw">share.rebas.tw</option>
+    </select>
+    <label>Bearer Token:</label>
+    <input type="text" id="global-token" placeholder="貼上 JWT Token（可選）">
+    <label>搜尋:</label>
+    <input type="text" id="search-box" placeholder="搜尋端點或說明...">
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="sidebar" id="sidebar"></nav>
+  <main class="main" id="main"></main>
+</div>
+
+<script>
+// ==========================================
+// Known ID → Name mappings (from JS bundle)
+// ==========================================
+const KNOWN_OPTIONS = {
+  league_uniqid: [
+    { value: "CPBL", label: "CPBL — 中華職棒" },
+    { value: "CPBLmi", label: "CPBLmi — 中華職棒二軍" },
+    { value: "AWB", label: "AWB — 亞洲冬季棒球聯盟" },
+  ],
+  season_uniqid: [
+    { group: "CPBL 2026", items: [
+      { value: "CPBL-2026-4j", label: "CPBL 2026 春訓" },
+    ]},
+    { group: "CPBL 2025", items: [
+      { value: "CPBL-2025-cF", label: "CPBL 2025 台灣大賽" },
+      { value: "CPBL-2025-lX", label: "CPBL 2025 挑戰賽" },
+      { value: "CPBL-2025-JO", label: "CPBL 2025 例行賽" },
+      { value: "CPBL-2025-28", label: "CPBL 2025 明星賽" },
+      { value: "CPBL-2025-L0", label: "CPBL 2025 春訓" },
+    ]},
+    { group: "CPBL 2024", items: [
+      { value: "CPBL-2024-Uz", label: "CPBL 2024 台灣大賽" },
+      { value: "CPBL-2024-HE", label: "CPBL 2024 挑戰賽" },
+      { value: "CPBL-2024-xa", label: "CPBL 2024 例行賽" },
+      { value: "CPBL-2024-pJ", label: "CPBL 2024 春訓" },
+    ]},
+    { group: "CPBL 2023", items: [
+      { value: "CPBL-2023-Za", label: "CPBL 2023 台灣大賽" },
+      { value: "CPBL-2023-b1", label: "CPBL 2023 挑戰賽" },
+      { value: "CPBL-2023-sk", label: "CPBL 2023 例行賽" },
+      { value: "CPBL-2023-yB", label: "CPBL 2023 春訓" },
+    ]},
+    { group: "CPBL 2022", items: [
+      { value: "CPBL-2022-o7", label: "CPBL 2022 台灣大賽" },
+      { value: "CPBL-2022-yt", label: "CPBL 2022 挑戰賽" },
+      { value: "CPBL-2022-dG", label: "CPBL 2022 例行賽" },
+      { value: "CPBL-2022-s6", label: "CPBL 2022 春訓" },
+    ]},
+    { group: "CPBL 2021-2018", items: [
+      { value: "CPBL-2021-53", label: "CPBL 2021 台灣大賽" },
+      { value: "CPBL-2021-fi", label: "CPBL 2021 例行賽" },
+      { value: "CPBL-2020-KS", label: "CPBL 2020 例行賽" },
+      { value: "CPBL-2019-Sf", label: "CPBL 2019 例行賽" },
+      { value: "CPBL-2018-Fq", label: "CPBL 2018 例行賽" },
+    ]},
+    { group: "二軍 CPBLmi", items: [
+      { value: "CPBLmi-2025-xS", label: "二軍 2025 挑戰賽" },
+      { value: "CPBLmi-2025-ED", label: "二軍 2025 例行賽" },
+      { value: "CPBLmi-2024-S4", label: "二軍 2024 挑戰賽" },
+      { value: "CPBLmi-2024-4l", label: "二軍 2024 例行賽" },
+      { value: "CPBLmi-2023-GP", label: "二軍 2023 例行賽" },
+      { value: "CPBLmi-2023-8O", label: "二軍 2023 邀請賽" },
+      { value: "CPBLmi-2022-C2", label: "二軍 2022 例行賽" },
+      { value: "CPBLmi-2021-Vw", label: "二軍 2021 例行賽" },
+      { value: "CPBLmi-2020-cP", label: "二軍 2020 例行賽" },
+    ]},
+    { group: "冬盟 AWB", items: [
+      { value: "AWB-2025-pi", label: "冬盟 2025 例行賽" },
+      { value: "AWB-2024-OY", label: "冬盟 2024 例行賽" },
+      { value: "AWB-2023-PH", label: "冬盟 2023 例行賽" },
+    ]},
+  ],
+  team_uniqid: [
+    { group: "CPBL 一軍", items: [
+      { value: "CPBL-rakuten", label: "樂天桃猿" },
+      { value: "CPBL-uni-lions", label: "統一7-ELEVEn獅" },
+      { value: "CPBL-brothers", label: "中信兄弟" },
+      { value: "CPBL-fubon", label: "富邦悍將" },
+      { value: "CPBL-dragons", label: "味全龍" },
+      { value: "CPBL-tsg", label: "台鋼雄鷹" },
+    ]},
+    { group: "提示", items: [
+      { value: "", label: "-- 隊伍 ID 由 API 動態取得，上方為常見值 --" },
+    ]},
+  ],
+  position: [
+    { value: "P", label: "P — 投手" },
+    { value: "C", label: "C — 捕手" },
+    { value: "1B", label: "1B — 一壘手" },
+    { value: "2B", label: "2B — 二壘手" },
+    { value: "3B", label: "3B — 三壘手" },
+    { value: "SS", label: "SS — 游擊手" },
+    { value: "LF", label: "LF — 左外野手" },
+    { value: "CF", label: "CF — 中外野手" },
+    { value: "RF", label: "RF — 右外野手" },
+    { value: "DH", label: "DH — 指定打擊" },
+  ],
+  side: [
+    { value: "offense", label: "offense — 進攻方" },
+    { value: "defense", label: "defense — 守備方" },
+  ],
+  type: [
+    { value: "grouped", label: "grouped — 分組" },
+  ],
+  strikezone: [
+    { value: "true", label: "true — 含好球帶" },
+  ],
+  overview: [
+    { value: "true", label: "true — 概覽模式" },
+  ],
+};
+
+// Which param names map to which option set
+const PARAM_OPTION_MAP = {
+  "league_uniqid": "league_uniqid",
+  "season_uniqid": "season_uniqid",
+  "team_uniqid": "team_uniqid",
+  "position": "position",
+  "side": "side",
+  "overview": "overview",
+};
+
+const API_SPEC = [
+  {
+    group: "公開資訊",
+    base: "https://www.rebas.tw",
+    endpoints: [
+      { method: "GET", path: "/api/public_reports", desc: "公開分析報告列表", params: [] },
+      { method: "GET", path: "/api/public_promos", desc: "公開促銷/活動資訊", params: [] },
+      { method: "GET", path: "/api/news", desc: "最新比賽新聞", params: [{ name: "limit", default: "10", hint: "筆數" }] },
+      { method: "GET", path: "/api/photos", desc: "最新比賽照片", params: [{ name: "limit", default: "10", hint: "筆數" }] },
+    ]
+  },
+  {
+    group: "聯盟與賽季",
+    base: "https://www.rebas.tw",
+    endpoints: [
+      { method: "GET", path: "/api/leagues/{league_uniqid}", desc: "聯盟資訊", params: [{ name: "league_uniqid", in: "path", hint: "聯盟 ID" }] },
+      { method: "GET", path: "/api/seasons/", desc: "賽季列表", params: [] },
+      { method: "GET", path: "/api/seasons/{season_uniqid}", desc: "單一賽季詳情", params: [{ name: "season_uniqid", in: "path", hint: "賽季 ID" }] },
+      { method: "GET", path: "/api/seasons/{season_uniqid}/brief", desc: "賽季簡介", params: [{ name: "season_uniqid", in: "path", hint: "賽季 ID" }] },
+      { method: "GET", path: "/api/seasons/{season_uniqid}/teams", desc: "賽季隊伍列表", params: [{ name: "season_uniqid", in: "path", hint: "賽季 ID" }] },
+      { method: "GET", path: "/api/seasons/{season_uniqid}/stats", desc: "賽季統計數據", params: [{ name: "season_uniqid", in: "path", hint: "賽季 ID" }] },
+      { method: "GET", path: "/api/seasons/{season_uniqid}/games", desc: "賽程查詢", params: [
+        { name: "season_uniqid", in: "path", hint: "賽季 ID" },
+        { name: "start", hint: "起始日期 YYYY-MM-DD" },
+        { name: "days", hint: "天數" },
+        { name: "type", hint: "grouped / 留空" },
+        { name: "strikezone", hint: "true / 留空" },
+      ]},
+      { method: "GET", path: "/api/seasons/{season_uniqid}/games/{game_uniqid}", desc: "單場比賽詳情", params: [
+        { name: "season_uniqid", in: "path", hint: "賽季 ID" },
+        { name: "game_uniqid", in: "path", hint: "比賽 ID" },
+      ]},
+      { method: "GET", path: "/api/seasons/{season_uniqid}/games/{game_uniqid}/related_links", desc: "比賽相關連結", params: [
+        { name: "season_uniqid", in: "path", hint: "賽季 ID" },
+        { name: "game_uniqid", in: "path", hint: "比賽 ID" },
+      ]},
+      { method: "GET", path: "/api/seasons/{season_uniqid}/leaders", desc: "排行榜", params: [
+        { name: "season_uniqid", in: "path", hint: "賽季 ID" },
+        { name: "type", hint: "打擊/投球類型" },
+        { name: "section", hint: "分類" },
+        { name: "pa", hint: "打席門檻" },
+        { name: "until", hint: "截止日期" },
+      ]},
+      { method: "GET", path: "/api/seasons/{season_uniqid}/teams/{team_uniqid}/players", desc: "隊伍球員名單", params: [
+        { name: "season_uniqid", in: "path", hint: "賽季 ID" },
+        { name: "team_uniqid", in: "path", hint: "隊伍 ID" },
+      ]},
+      { method: "GET", path: "/api/seasons/{season_uniqid}/firstbase", desc: "賽季 FirstBase 數據", params: [{ name: "season_uniqid", in: "path", hint: "賽季 ID" }] },
+    ]
+  },
+  {
+    group: "球員",
+    base: "https://www.rebas.tw",
+    endpoints: [
+      { method: "GET", path: "/api/players/{player_uniqid}", desc: "球員個人資訊", params: [{ name: "player_uniqid", in: "path", hint: "球員 ID" }] },
+      { method: "GET", path: "/api/players/{player_uniqid}/stats", desc: "球員統計數據", params: [{ name: "player_uniqid", in: "path", hint: "球員 ID" }] },
+      { method: "GET", path: "/api/players/{player_uniqid}/seasons/{season_uniqid}/teams/{team_uniqid}/logs", desc: "球員逐場紀錄", params: [
+        { name: "player_uniqid", in: "path", hint: "球員 ID" },
+        { name: "season_uniqid", in: "path", hint: "賽季 ID" },
+        { name: "team_uniqid", in: "path", hint: "隊伍 ID" },
+      ]},
+      { method: "GET", path: "/api/players/{player_uniqid}/posts", desc: "球員相關文章", params: [{ name: "player_uniqid", in: "path", hint: "球員 ID" }] },
+      { method: "GET", path: "/api/players/{player_uniqid}/related", desc: "球員相關資源", params: [{ name: "player_uniqid", in: "path", hint: "球員 ID" }] },
+      { method: "POST", path: "/api/players/{player_uniqid}/posts", desc: "建立球員文章（需認證）", params: [
+        { name: "player_uniqid", in: "path", hint: "球員 ID" },
+      ], hasBody: true },
+      { method: "PUT", path: "/api/players/{player_uniqid}/posts/{post_uniqid}", desc: "更新球員文章（需認證）", params: [
+        { name: "player_uniqid", in: "path", hint: "球員 ID" },
+        { name: "post_uniqid", in: "path", hint: "文章 ID" },
+      ], hasBody: true },
+      { method: "DELETE", path: "/api/players/{player_uniqid}/posts/{post_uniqid}", desc: "刪除球員文章（需認證）", params: [
+        { name: "player_uniqid", in: "path", hint: "球員 ID" },
+        { name: "post_uniqid", in: "path", hint: "文章 ID" },
+      ]},
+      { method: "GET", path: "/api/permission/player/{player_uniqid}/adopted", desc: "查詢球員認領權限", params: [{ name: "player_uniqid", in: "path", hint: "球員 ID" }] },
+    ]
+  },
+  {
+    group: "隊伍",
+    base: "https://www.rebas.tw",
+    endpoints: [
+      { method: "GET", path: "/api/teams/{team_uniqid}", desc: "隊伍詳情", params: [{ name: "team_uniqid", in: "path", hint: "隊伍 ID" }] },
+    ]
+  },
+  {
+    group: "職業聯盟 (Formal)",
+    base: "https://www.rebas.tw",
+    endpoints: [
+      { method: "GET", path: "/api/formal/leagues/", desc: "職業聯盟列表", params: [] },
+      { method: "GET", path: "/api/formal/leagues/{league_uniqid}/weee", desc: "聯盟 weee 事件", params: [
+        { name: "league_uniqid", in: "path", hint: "聯盟 ID" },
+        { name: "before", hint: "日期" },
+        { name: "cases", hint: "多值，逗號分隔" },
+      ]},
+      { method: "GET", path: "/api/formal/leagues/{league_uniqid}/reee", desc: "聯盟 reee 事件", params: [
+        { name: "league_uniqid", in: "path", hint: "聯盟 ID" },
+        { name: "before", hint: "日期" },
+        { name: "cases", hint: "多值，逗號分隔" },
+      ]},
+      { method: "GET", path: "/api/formal/seasons/", desc: "職業賽季列表", params: [] },
+      { method: "GET", path: "/api/formal/seasons/{season_uniqid}/latest_games", desc: "最新比賽", params: [
+        { name: "season_uniqid", in: "path", hint: "賽季 ID" },
+        { name: "overview", hint: "true / 留空" },
+      ]},
+      { method: "GET", path: "/api/formal/seasons/{season_uniqid}/teams/", desc: "職業賽季隊伍", params: [{ name: "season_uniqid", in: "path", hint: "賽季 ID" }] },
+      { method: "GET", path: "/api/formal/seasons/{season_uniqid}/pitch_stats", desc: "投球統計", params: [{ name: "season_uniqid", in: "path", hint: "賽季 ID" }] },
+      { method: "GET", path: "/api/formal/seasons/{season_uniqid}/pa_logs", desc: "打席紀錄", params: [
+        { name: "season_uniqid", in: "path", hint: "賽季 ID" },
+        { name: "side", hint: "攻/守方" },
+      ]},
+      { method: "GET", path: "/api/formal/calendar", desc: "職業賽事行事曆", params: [
+        { name: "start", hint: "起始日期" },
+        { name: "days", hint: "天數" },
+        { name: "league_uniqid", hint: "聯盟 ID" },
+      ]},
+      { method: "GET", path: "/api/formal/players/", desc: "職業球員列表", params: [
+        { name: "position", hint: "守備位置" },
+        { name: "team", hint: "隊伍" },
+        { name: "query", hint: "搜尋關鍵字" },
+      ]},
+      { method: "GET", path: "/api/formal/players/{player_uniqid}/season_stats", desc: "球員賽季統計", params: [{ name: "player_uniqid", in: "path", hint: "球員 ID" }] },
+      { method: "GET", path: "/api/formal/search/players", desc: "球員搜尋", params: [
+        { name: "query", hint: "搜尋關鍵字" },
+        { name: "uniqid", hint: "批次查詢 uniqid" },
+      ]},
+      { method: "PUT", path: "/api/formal/seasons/{season_uniqid}/games/{game_uniqid}/gamenote", desc: "更新比賽解說（需認證）", params: [
+        { name: "season_uniqid", in: "path", hint: "賽季 ID" },
+        { name: "game_uniqid", in: "path", hint: "比賽 ID" },
+      ], hasBody: true },
+    ]
+  },
+  {
+    group: "FirstBase 進階分析",
+    base: "https://www.rebas.tw",
+    endpoints: [
+      { method: "GET", path: "/api/firstbase/BIG/coefficient", desc: "BIG 係數", params: [] },
+      { method: "GET", path: "/api/firstbase/teams/{team_uniqid}/games", desc: "隊伍比賽 FirstBase 數據", params: [{ name: "team_uniqid", in: "path", hint: "隊伍 ID" }] },
+      { method: "GET", path: "/api/firstbase/teams/{team_uniqid}/info", desc: "隊伍 FirstBase 資訊", params: [{ name: "team_uniqid", in: "path", hint: "隊伍 ID" }] },
+      { method: "GET", path: "/api/tournament_firstbase_modules/share/{uniqid}", desc: "取得分享的 FirstBase 模組", params: [{ name: "uniqid", in: "path", hint: "模組 ID" }] },
+      { method: "POST", path: "/api/tournament_firstbase_modules/share", desc: "建立分享模組（需認證）", params: [], hasBody: true },
+      { method: "PUT", path: "/api/firstbase/teams/{team_uniqid}/games/{game_uniqid}/tags", desc: "更新比賽標籤（需認證）", params: [
+        { name: "team_uniqid", in: "path", hint: "隊伍 ID" },
+        { name: "game_uniqid", in: "path", hint: "比賽 ID" },
+      ], hasBody: true },
+      { method: "PUT", path: "/api/firstbase/teams/{team_uniqid}/filter_modules", desc: "更新篩選模組設定（需認證）", params: [
+        { name: "team_uniqid", in: "path", hint: "隊伍 ID" },
+      ], hasBody: true },
+    ]
+  },
+  {
+    group: "聯賽管理（需認證）",
+    base: "https://www.rebas.tw",
+    endpoints: [
+      { method: "POST", path: "/api/seasons/{season_uniqid}/games/", desc: "新增比賽", params: [{ name: "season_uniqid", in: "path", hint: "賽季 ID" }], hasBody: true },
+      { method: "DELETE", path: "/api/seasons/{season_uniqid}/games/{game_uniqid}", desc: "刪除比賽", params: [
+        { name: "season_uniqid", in: "path", hint: "賽季 ID" },
+        { name: "game_uniqid", in: "path", hint: "比賽 ID" },
+      ]},
+      { method: "POST", path: "/api/seasons/{season_uniqid}/games/{game_uniqid}/related_links", desc: "新增比賽相關連結", params: [
+        { name: "season_uniqid", in: "path", hint: "賽季 ID" },
+        { name: "game_uniqid", in: "path", hint: "比賽 ID" },
+      ], hasBody: true },
+      { method: "GET", path: "/api/season_registries/", desc: "賽事報名列表", params: [] },
+      { method: "POST", path: "/api/season_registries/", desc: "建立賽事報名", params: [], hasBody: true },
+      { method: "GET", path: "/api/season_registries/{registry_uniqid}", desc: "賽事報名詳情", params: [{ name: "registry_uniqid", in: "path", hint: "報名 ID" }] },
+      { method: "GET", path: "/api/season_registries/{registry_uniqid}/teams", desc: "報名隊伍列表", params: [{ name: "registry_uniqid", in: "path", hint: "報名 ID" }] },
+    ]
+  },
+  {
+    group: "媒體上傳（需認證）",
+    base: "https://www.rebas.tw",
+    endpoints: [
+      { method: "POST", path: "/api/media", desc: "上傳媒體檔案（FormData）", params: [{ name: "type", hint: "media type" }], hasBody: true },
+      { method: "POST", path: "/api/video", desc: "分段影片上傳（Content-Range）", params: [], hasBody: true },
+    ]
+  },
+  {
+    group: "會員/用戶系統",
+    base: "https://www.rebas.tw",
+    endpoints: [
+      { method: "GET", path: "/api/user/info", desc: "當前用戶資訊", params: [] },
+      { method: "GET", path: "/api/user/permission", desc: "用戶權限", params: [] },
+      { method: "GET", path: "/api/user/subscription", desc: "訂閱狀態", params: [] },
+      { method: "GET", path: "/api/user/player_related_permission", desc: "球員相關內容權限", params: [{ name: "relateds", hint: "批次 ID" }] },
+      { method: "GET", path: "/api/user/formal_game_related_permission", desc: "職業比賽相關權限", params: [{ name: "relateds", hint: "批次 ID" }] },
+      { method: "GET", path: "/api/member/seasons/{season_uniqid}/games/{game_uniqid}/gamenote", desc: "會員比賽解說（需付費）", params: [
+        { name: "season_uniqid", in: "path", hint: "賽季 ID" },
+        { name: "game_uniqid", in: "path", hint: "比賽 ID" },
+      ]},
+    ]
+  },
+  {
+    group: "認證服務 (account.rebas.tw)",
+    base: "https://account.rebas.tw",
+    endpoints: [
+      { method: "POST", path: "/api/user/refresh_token", desc: "刷新 Token（用 RB_RID cookie）", params: [] },
+      { method: "GET", path: "/api/flash", desc: "Flash 訊息通知", params: [{ name: "event", hint: "事件類型" }] },
+    ]
+  },
+  {
+    group: "娛樂互動 (entertainment.rebas.tw)",
+    base: "https://entertainment.rebas.tw",
+    endpoints: [
+      { method: "GET", path: "/api/we_prediction/admin", desc: "管理員預測遊戲設定", params: [] },
+      { method: "GET", path: "/api/we_prediction/games/{game_uniqid}", desc: "取得單場預測題目", params: [{ name: "game_uniqid", in: "path", hint: "比賽 ID" }] },
+      { method: "PUT", path: "/api/we_prediction/games/{game_uniqid}", desc: "提交比賽預測", params: [{ name: "game_uniqid", in: "path", hint: "比賽 ID" }], hasBody: true, bodyTemplate: '{\n  "gameDate": "",\n  "favTeam": "",\n  "isMember": false,\n  "selections": []\n}' },
+      { method: "GET", path: "/api/we_prediction/self", desc: "自己的預測紀錄", params: [] },
+      { method: "GET", path: "/api/ranking/we_prediction", desc: "預測排行榜", params: [] },
+      { method: "GET", path: "/api/comments/{type}/{target_uniqid}", desc: "取得留言", params: [
+        { name: "type", in: "path", hint: "留言類型" },
+        { name: "target_uniqid", in: "path", hint: "目標 ID" },
+        { name: "page", hint: "頁碼" },
+        { name: "limit", hint: "筆數" },
+        { name: "favTeam", hint: "支持隊伍" },
+      ]},
+      { method: "POST", path: "/api/comments/{type}/{target_uniqid}", desc: "新增留言", params: [
+        { name: "type", in: "path", hint: "留言類型" },
+        { name: "target_uniqid", in: "path", hint: "目標 ID" },
+      ], hasBody: true },
+      { method: "DELETE", path: "/api/comments/{type}/{target_uniqid}", desc: "刪除留言", params: [
+        { name: "type", in: "path", hint: "留言類型" },
+        { name: "target_uniqid", in: "path", hint: "目標 ID" },
+      ]},
+    ]
+  },
+  {
+    group: "部落格 (blog.rebas.tw)",
+    base: "https://blog.rebas.tw",
+    endpoints: [
+      { method: "GET", path: "/wp-json/wp/v2/posts", desc: "WordPress 文章列表", params: [
+        { name: "categories", hint: "分類 ID" },
+        { name: "per_page", default: "10", hint: "每頁筆數" },
+        { name: "_embed", default: "true", hint: "嵌入資源" },
+      ]},
+    ]
+  },
+  {
+    group: "分享預覽 (share.rebas.tw)",
+    base: "https://share.rebas.tw",
+    endpoints: [
+      { method: "GET", path: "/preview", desc: "Open Graph 預覽", params: [
+        { name: "url", hint: "要預覽的 URL" },
+        { name: "nocache", default: "true", hint: "true / 留空" },
+      ]},
+    ]
+  },
+];
+
+let cardIdCounter = 0;
+
+function renderParamRow(p, inType) {
+  const labelText = inType === 'path' ? `{${p.name}}` : p.name;
+  const optionKey = PARAM_OPTION_MAP[p.name];
+  const options = optionKey ? KNOWN_OPTIONS[optionKey] : null;
+
+  if (options) {
+    // Render as select dropdown
+    let selectHTML = `<select data-param="${p.name}" data-in="${inType}" style="flex:1">`;
+    selectHTML += `<option value="">-- 選擇或手動輸入 --</option>`;
+
+    options.forEach(opt => {
+      if (opt.group && opt.items) {
+        selectHTML += `<optgroup label="${opt.group}">`;
+        opt.items.forEach(item => {
+          selectHTML += `<option value="${item.value}">${item.label}</option>`;
+        });
+        selectHTML += `</optgroup>`;
+      } else {
+        selectHTML += `<option value="${opt.value}">${opt.label}</option>`;
+      }
+    });
+    selectHTML += `</select>`;
+    selectHTML += `<input type="text" data-param="${p.name}" data-in="${inType}" data-manual="true" placeholder="或手動輸入 ID" value="${p.default || ''}" style="flex:0.6">`;
+
+    return `<div class="param-row">
+      <label>${labelText}</label>
+      ${selectHTML}
+      <span class="param-hint">${p.hint || ''}</span>
+    </div>`;
+  }
+
+  // Render as plain input
+  return `<div class="param-row">
+    <label>${labelText}</label>
+    <input type="text" data-param="${p.name}" data-in="${inType}" placeholder="${p.hint || ''}" value="${p.default || ''}">
+    <span class="param-hint">${p.hint || ''}</span>
+  </div>`;
+}
+
+function buildUI() {
+  const sidebar = document.getElementById('sidebar');
+  const main = document.getElementById('main');
+  let sidebarHTML = '';
+  let mainHTML = '';
+
+  API_SPEC.forEach((group, gi) => {
+    const groupId = `group-${gi}`;
+    sidebarHTML += `<div class="group-title">${group.group}</div>`;
+    mainHTML += `<div class="api-group" id="${groupId}"><h2>${group.group}</h2>`;
+
+    group.endpoints.forEach((ep, ei) => {
+      const cardId = `card-${cardIdCounter++}`;
+      const methodClass = `method-${ep.method}`;
+
+      sidebarHTML += `<a onclick="toggleCard('${cardId}')" data-search="${ep.method} ${ep.path} ${ep.desc}">
+        <span class="method-badge ${methodClass}">${ep.method}</span>
+        <span>${ep.path.split('/api')[1] || ep.path}</span>
+      </a>`;
+
+      const pathParams = ep.params.filter(p => p.in === 'path');
+      const queryParams = ep.params.filter(p => p.in !== 'path');
+
+      let paramsHTML = '';
+      if (pathParams.length) {
+        paramsHTML += '<div class="section-label">Path Parameters</div>';
+        pathParams.forEach(p => {
+          paramsHTML += renderParamRow(p, 'path');
+        });
+      }
+      if (queryParams.length) {
+        paramsHTML += '<div class="section-label" style="margin-top:12px">Query Parameters</div>';
+        queryParams.forEach(p => {
+          paramsHTML += renderParamRow(p, 'query');
+        });
+      }
+
+      let bodyHTML = '';
+      if (ep.hasBody) {
+        bodyHTML = `<div class="section-label" style="margin-top:12px">Request Body (JSON)</div>
+          <textarea class="body-editor" data-body="true">${ep.bodyTemplate || '{\n  \n}'}</textarea>`;
+      }
+
+      mainHTML += `
+        <div class="api-card" id="${cardId}" data-base="${ep.base || group.base}" data-method="${ep.method}" data-path="${ep.path}" data-search="${ep.method} ${ep.path} ${ep.desc}">
+          <div class="api-card-header" onclick="toggleCard('${cardId}')">
+            <span class="chevron">&#9654;</span>
+            <span class="method-badge ${methodClass}">${ep.method}</span>
+            <span class="api-path">${ep.path}</span>
+            <span class="api-desc">${ep.desc}</span>
+          </div>
+          <div class="api-card-body">
+            ${paramsHTML}
+            ${bodyHTML}
+            <div style="margin-top:12px;display:flex;gap:8px;align-items:center;">
+              <button class="btn-send" onclick="sendRequest('${cardId}')">Send Request</button>
+              <span class="loading-text" style="display:none;color:var(--text-muted);font-size:0.85rem;">Loading...</span>
+            </div>
+            <div class="response-area">
+              <div class="response-header">
+                <span>Response</span>
+                <span class="status-code"></span>
+              </div>
+              <pre class="response-body"></pre>
+            </div>
+          </div>
+        </div>`;
+    });
+    mainHTML += '</div>';
+  });
+
+  sidebar.innerHTML = sidebarHTML;
+  main.innerHTML = mainHTML;
+}
+
+function toggleCard(cardId) {
+  const card = document.getElementById(cardId);
+  card.classList.toggle('expanded');
+  if (card.classList.contains('expanded')) {
+    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+async function sendRequest(cardId) {
+  const card = document.getElementById(cardId);
+  const method = card.dataset.method;
+  let path = card.dataset.path;
+  const baseSelect = document.getElementById('base-url-select');
+  let base = card.dataset.base || baseSelect.value;
+  const token = document.getElementById('global-token').value.trim();
+
+  // Helper: get param value (manual input overrides select)
+  function getParamValue(paramName, inType) {
+    const manual = card.querySelector(`input[data-param="${paramName}"][data-in="${inType}"][data-manual="true"]`);
+    if (manual && manual.value.trim()) return manual.value.trim();
+    const select = card.querySelector(`select[data-param="${paramName}"][data-in="${inType}"]`);
+    if (select && select.value) return select.value;
+    const input = card.querySelector(`input[data-param="${paramName}"][data-in="${inType}"]:not([data-manual])`);
+    if (input && input.value.trim()) return input.value.trim();
+    return '';
+  }
+
+  // Replace path params
+  const pathEls = card.querySelectorAll('[data-in="path"]');
+  const pathParamNames = new Set();
+  pathEls.forEach(el => pathParamNames.add(el.dataset.param));
+  pathParamNames.forEach(name => {
+    const val = getParamValue(name, 'path');
+    path = path.replace(`{${name}}`, encodeURIComponent(val));
+  });
+
+  // Build query string
+  const queryEls = card.querySelectorAll('[data-in="query"]');
+  const queryParamNames = new Set();
+  queryEls.forEach(el => queryParamNames.add(el.dataset.param));
+  const params = new URLSearchParams();
+  queryParamNames.forEach(name => {
+    const val = getParamValue(name, 'query');
+    if (val) params.append(name, val);
+  });
+  const qs = params.toString();
+  const url = base + path + (qs ? '?' + qs : '');
+
+  const headers = { 'Accept': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  // Route through local proxy to bypass CORS
+  const proxyUrl = `/proxy?url=${encodeURIComponent(url)}`;
+  const fetchOpts = { method, headers };
+
+  // Body
+  const bodyArea = card.querySelector('textarea[data-body]');
+  if (bodyArea && (method === 'POST' || method === 'PUT')) {
+    headers['Content-Type'] = 'application/json';
+    fetchOpts.body = bodyArea.value;
+  }
+
+  const btn = card.querySelector('.btn-send');
+  const loadingText = card.querySelector('.loading-text');
+  const responseArea = card.querySelector('.response-area');
+  const statusEl = responseArea.querySelector('.status-code');
+  const bodyEl = responseArea.querySelector('.response-body');
+
+  btn.disabled = true;
+  loadingText.style.display = 'inline';
+  responseArea.classList.add('visible');
+  statusEl.textContent = '...';
+  statusEl.className = 'status-code';
+  bodyEl.textContent = `→ ${method} ${url}\n  (via proxy)\n\n`;
+
+  try {
+    const resp = await fetch(proxyUrl, fetchOpts);
+    const status = resp.status;
+    statusEl.textContent = `${status} ${resp.statusText}`;
+    if (status >= 200 && status < 300) statusEl.classList.add('status-2xx');
+    else if (status >= 400 && status < 500) statusEl.classList.add('status-4xx');
+    else if (status >= 500) statusEl.classList.add('status-5xx');
+    else statusEl.classList.add('status-0xx');
+
+    const contentType = resp.headers.get('content-type') || '';
+    let text;
+    if (contentType.includes('json')) {
+      const json = await resp.json();
+      text = JSON.stringify(json, null, 2);
+    } else {
+      text = await resp.text();
+      try {
+        const json = JSON.parse(text);
+        text = JSON.stringify(json, null, 2);
+      } catch {}
+    }
+    bodyEl.textContent = text;
+  } catch (err) {
+    statusEl.textContent = 'Error';
+    statusEl.classList.add('status-5xx');
+    bodyEl.textContent = err.message + '\n\n請確認代理伺服器正在運行：node server.mjs';
+  }
+  btn.disabled = false;
+  loadingText.style.display = 'none';
+}
+
+// Search
+document.getElementById('search-box').addEventListener('input', function() {
+  const query = this.value.toLowerCase();
+  document.querySelectorAll('.api-card').forEach(card => {
+    const match = card.dataset.search.toLowerCase().includes(query);
+    card.style.display = match ? '' : 'none';
+  });
+  document.querySelectorAll('.api-group').forEach(group => {
+    const visible = group.querySelectorAll('.api-card:not([style*="display: none"])');
+    group.style.display = visible.length ? '' : 'none';
+  });
+  document.querySelectorAll('.sidebar a').forEach(link => {
+    const match = (link.dataset.search || '').toLowerCase().includes(query);
+    link.style.display = match ? '' : 'none';
+  });
+});
+
+buildUI();
+</script>
+</body>
+</html>
