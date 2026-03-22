@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CPBL 守備局數 — 2026 熱身賽</title>
+<title>CPBL 守備局數 / RF — 2026 熱身賽</title>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -287,33 +287,122 @@ function outsToIP(totalOuts) {
 }
 
 function computeFielding(gamesData, teamLookup) {
-  // { compositeKey: { uniqid, name, number, teamUniqid, teamName, teamColor, positions: { [pos]: outs } } }
+  // Each player entry: { ..., positions: { [pos]: { outs, po, a } } }
   const players = {};
+
+  function ensurePlayer(uniqid, name, number, fieldingTeamUniqid) {
+    const key = `${uniqid}_${fieldingTeamUniqid}`;
+    if (!players[key]) {
+      const team = teamLookup[fieldingTeamUniqid] || {};
+      players[key] = {
+        uniqid,
+        name: name || '',
+        number: number || '',
+        teamUniqid: fieldingTeamUniqid,
+        teamName: team.name || '',
+        teamAbbr: team.abbr || '',
+        teamColor: team.color || '#999',
+        positions: {},
+      };
+    }
+    return players[key];
+  }
+
+  function ensurePos(playerObj, pos) {
+    if (!playerObj.positions[pos]) playerObj.positions[pos] = { outs: 0, po: 0, a: 0 };
+    return playerObj.positions[pos];
+  }
 
   function creditOuts(fielders, outsCount, fieldingTeamUniqid) {
     if (outsCount <= 0 || !fielders || !fielders.length) return;
     fielders.forEach(f => {
       const pos = f.position;
-      if (pos < 1 || pos > 9) return; // skip DH (10)
+      if (pos < 1 || pos > 9) return;
       const p = f.fielder;
       if (!p || !p.uniqid) return;
-
-      const key = `${p.uniqid}_${fieldingTeamUniqid}`;
-      if (!players[key]) {
-        const team = teamLookup[fieldingTeamUniqid] || {};
-        players[key] = {
-          uniqid: p.uniqid,
-          name: p.name || '',
-          number: p.number || '',
-          teamUniqid: fieldingTeamUniqid,
-          teamName: team.name || '',
-          teamAbbr: team.abbr || '',
-          teamColor: team.color || '#999',
-          positions: {},
-        };
-      }
-      players[key].positions[pos] = (players[key].positions[pos] || 0) + outsCount;
+      const playerObj = ensurePlayer(p.uniqid, p.name, p.number, fieldingTeamUniqid);
+      ensurePos(playerObj, pos).outs += outsCount;
     });
+  }
+
+  // Parse location_code to extract fielder position digits
+  function getFielderDigits(locationCode) {
+    if (!locationCode) return [];
+    return [...locationCode].filter(c => c >= '1' && c <= '9').map(Number);
+  }
+
+  // Credit PO/A based on result and location_code
+  function creditPOA(pa, fielders, fieldingTeamUniqid) {
+    const result = pa.result || '';
+    const locCode = pa.location_code || '';
+    const digits = getFielderDigits(locCode);
+    const outsRecorded = Math.max(0, (pa.end_outs || 0) - (pa.outs || 0));
+    if (outsRecorded === 0 && result !== 'E') return;
+
+    // Build fielder lookup: position -> player info
+    const fMap = {};
+    (fielders || []).forEach(f => {
+      if (f.position >= 1 && f.position <= 9 && f.fielder?.uniqid) {
+        fMap[f.position] = f.fielder;
+      }
+    });
+
+    function addPO(pos) {
+      const p = fMap[pos];
+      if (p) ensurePos(ensurePlayer(p.uniqid, p.name, p.number, fieldingTeamUniqid), pos).po++;
+    }
+    function addA(pos) {
+      const p = fMap[pos];
+      if (p) ensurePos(ensurePlayer(p.uniqid, p.name, p.number, fieldingTeamUniqid), pos).a++;
+    }
+
+    if (result === 'SO') {
+      // Strikeout: catcher gets PO
+      addPO(2);
+    } else if (result === 'GO') {
+      // Ground out: digits[0] = fielder (Assist), implicit 1B (pos3) = Putout
+      if (digits.length >= 1) {
+        if (digits.length === 1 && digits[0] === 3) {
+          // Unassisted by 1B
+          addPO(3);
+        } else {
+          digits.forEach(d => addA(d));
+          if (!digits.includes(3)) addPO(3);
+        }
+      }
+    } else if (result === 'FO' || result === 'SF') {
+      // Fly out / Sac fly: catching fielder gets PO
+      if (digits.length >= 1) {
+        // First digit = primary fielder who caught
+        addPO(digits[0]);
+      }
+    } else if (result === 'GIDP') {
+      // Double play: digits = fielders involved, each gets credit
+      // Typically 2 putouts and assists along the chain
+      if (digits.length >= 2) {
+        // First fielder = Assist (fielded), middle = Assist+PO (turned), last implicit = PO
+        digits.forEach(d => addA(d));
+        if (!digits.includes(3)) addPO(3);
+        // The relay fielder also gets a PO (at second base)
+        if (digits.length >= 2) addPO(digits[digits.length - 1]);
+      } else if (digits.length === 1) {
+        addA(digits[0]);
+        if (!digits.includes(3)) addPO(3);
+      }
+      // "x" code = no location data, skip
+    } else if (result === 'FC') {
+      // Fielder's choice: digits = fielder who threw
+      if (digits.length >= 1) {
+        digits.forEach(d => addA(d));
+      }
+    } else if (result === 'SH') {
+      // Sacrifice bunt: fielder picks up and throws
+      if (digits.length >= 1) {
+        digits.forEach(d => addA(d));
+        // Implicit PO to the base (often 1B or wherever the play was made)
+        if (digits.length === 1 && !digits.includes(3)) addPO(3);
+      }
+    }
   }
 
   gamesData.forEach(gameResp => {
@@ -325,7 +414,7 @@ function computeFielding(gamesData, teamLookup) {
     const homeTeam = game.home?.team_uniqid || '';
     const awayTeam = game.away?.team_uniqid || '';
 
-    // Group PAs by half-inning to detect between-PA outs (caught stealing, pickoff)
+    // Group PAs by half-inning to detect between-PA outs
     const halfInnings = {};
     paList.forEach(pa => {
       const key = `${pa.inning}_${pa.side}`;
@@ -340,19 +429,28 @@ function computeFielding(gamesData, teamLookup) {
         if (!fielders || !fielders.length) continue;
         const fieldingTeamUniqid = pa.side === 'AWAY' ? homeTeam : awayTeam;
 
-        // 1. Outs between previous PA and this PA (caught stealing, pickoff, etc.)
+        // 1. Between-PA outs (caught stealing, pickoff)
         if (i > 0) {
           const prevEndOuts = pas[i - 1].end_outs || 0;
           const gapOuts = (pa.outs || 0) - prevEndOuts;
           if (gapOuts > 0) {
-            // Credit to fielders at the time of THIS PA (they were on the field when it happened)
             creditOuts(fielders, gapOuts, fieldingTeamUniqid);
+            // Gap outs (CS/pickoff): credit catcher PO for CS
+            const p2 = fielders.find(f => f.position === 2)?.fielder;
+            if (p2?.uniqid) {
+              for (let g = 0; g < gapOuts; g++) {
+                ensurePos(ensurePlayer(p2.uniqid, p2.name, p2.number, fieldingTeamUniqid), 2).po++;
+              }
+            }
           }
         }
 
         // 2. Outs during this PA
         const outsThisPA = Math.max(0, (pa.end_outs || 0) - (pa.outs || 0));
         creditOuts(fielders, outsThisPA, fieldingTeamUniqid);
+
+        // 3. PO/A from location_code
+        creditPOA(pa, fielders, fieldingTeamUniqid);
       }
     });
   });
@@ -382,8 +480,24 @@ function ErrorBox({ message }) {
   return <div className="error-box">{message}</div>;
 }
 
+// Helper to get stats from position data (now objects with { outs, po, a })
+function posOuts(posData) { return posData?.outs || 0; }
+function posPO(posData) { return posData?.po || 0; }
+function posA(posData) { return posData?.a || 0; }
+
+function playerTotals(player) {
+  let outs = 0, po = 0, a = 0;
+  POSITIONS.forEach(p => {
+    const d = player.positions[p.key];
+    if (d) { outs += d.outs || 0; po += d.po || 0; a += d.a || 0; }
+  });
+  const ip = outs / 3;
+  const rf9 = ip > 0 ? ((po + a) / ip) * 9 : 0;
+  return { outs, po, a, rf9 };
+}
+
 function FieldingTable({ data, teamFilter }) {
-  const [sortKey, setSortKey] = useState('total');
+  const [sortKey, setSortKey] = useState('rf9');
   const [sortAsc, setSortAsc] = useState(false);
 
   const filtered = useMemo(() => {
@@ -401,12 +515,18 @@ function FieldingTable({ data, teamFilter }) {
       } else if (sortKey === 'team') {
         va = a.teamName; vb = b.teamName;
         return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
-      } else if (sortKey === 'total') {
-        va = POSITIONS.reduce((s, p) => s + (a.positions[p.key] || 0), 0);
-        vb = POSITIONS.reduce((s, p) => s + (b.positions[p.key] || 0), 0);
+      } else if (sortKey === 'totalIP') {
+        va = playerTotals(a).outs; vb = playerTotals(b).outs;
+      } else if (sortKey === 'po') {
+        va = playerTotals(a).po; vb = playerTotals(b).po;
+      } else if (sortKey === 'a') {
+        va = playerTotals(a).a; vb = playerTotals(b).a;
+      } else if (sortKey === 'rf9') {
+        va = playerTotals(a).rf9; vb = playerTotals(b).rf9;
       } else {
-        va = a.positions[sortKey] || 0;
-        vb = b.positions[sortKey] || 0;
+        // Position column: sort by outs at that position
+        va = posOuts(a.positions[sortKey]);
+        vb = posOuts(b.positions[sortKey]);
       }
       return sortAsc ? va - vb : vb - va;
     });
@@ -437,14 +557,23 @@ function FieldingTable({ data, teamFilter }) {
                   {pos.label}{arrow(pos.key)}
                 </th>
               ))}
-              <th className={sortKey === 'total' ? 'sorted' : ''} onClick={() => handleSort('total')}>
-                Total{arrow('total')}
+              <th className={sortKey === 'totalIP' ? 'sorted' : ''} onClick={() => handleSort('totalIP')}>
+                IP{arrow('totalIP')}
+              </th>
+              <th className={sortKey === 'po' ? 'sorted' : ''} onClick={() => handleSort('po')}>
+                PO{arrow('po')}
+              </th>
+              <th className={sortKey === 'a' ? 'sorted' : ''} onClick={() => handleSort('a')}>
+                A{arrow('a')}
+              </th>
+              <th className={sortKey === 'rf9' ? 'sorted' : ''} onClick={() => handleSort('rf9')}>
+                RF/9{arrow('rf9')}
               </th>
             </tr>
           </thead>
           <tbody>
             {sorted.map(player => {
-              const totalOuts = POSITIONS.reduce((s, p) => s + (player.positions[p.key] || 0), 0);
+              const t = playerTotals(player);
               return (
                 <tr key={`${player.uniqid}_${player.teamUniqid}`}>
                   <td>
@@ -456,14 +585,20 @@ function FieldingTable({ data, teamFilter }) {
                   </td>
                   <td className="team-abbr">{player.teamAbbr || player.teamName}</td>
                   {POSITIONS.map(pos => {
-                    const outs = player.positions[pos.key];
+                    const d = player.positions[pos.key];
+                    const outs = posOuts(d);
                     return (
                       <td key={pos.key} className={`ip-cell ${outs ? 'has-value' : 'no-value'}`}>
                         {outs ? outsToIP(outs) : '-'}
                       </td>
                     );
                   })}
-                  <td className="ip-total">{outsToIP(totalOuts)}</td>
+                  <td className="ip-total">{outsToIP(t.outs)}</td>
+                  <td style={{ fontWeight: 600 }}>{t.po}</td>
+                  <td style={{ fontWeight: 600 }}>{t.a}</td>
+                  <td style={{ fontWeight: 700, color: t.rf9 > 0 ? 'var(--accent)' : 'var(--text-muted)' }}>
+                    {t.outs > 0 ? t.rf9.toFixed(2) : '-'}
+                  </td>
                 </tr>
               );
             })}
@@ -555,7 +690,7 @@ function App() {
     <>
       <div className="header">
         <div className="header-inner">
-          <h1><span>CPBL</span> 守備局數</h1>
+          <h1><span>CPBL</span> 守備局數 / RF</h1>
           <a href="/index.html" className="nav-link">API Explorer</a>
           <a href="/standings.html" className="nav-link">戰績表</a>
         </div>
@@ -580,7 +715,7 @@ function App() {
             </div>
 
             <div className="section">
-              <div className="section-title">各守位局數統計</div>
+              <div className="section-title">守備局數 / 刺殺 / 助殺 / RF9</div>
               <div className="filter-bar">
                 <label>篩選球隊：</label>
                 <select value={teamFilter} onChange={e => setTeamFilter(e.target.value)}>
