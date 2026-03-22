@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CPBL 戰績表 — Rebas</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  :root {
+    --bg: #f0f2f5;
+    --card: #ffffff;
+    --text: #1a1a2e;
+    --text-muted: #6b7280;
+    --border: #e5e7eb;
+    --accent: #2563eb;
+    --accent-light: #eff6ff;
+    --green: #16a34a;
+    --green-bg: #f0fdf4;
+    --red: #dc2626;
+    --red-bg: #fef2f2;
+    --radius: 4px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* Header */
+  .header {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 0;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .header-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  .header h1 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+  .header h1 span { color: var(--accent); }
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .season-select {
+    appearance: none;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 36px 8px 14px;
+    border-radius: var(--radius);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236b7280' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    min-width: 200px;
+  }
+  .season-select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .half-toggle {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .half-toggle button {
+    padding: 7px 14px;
+    border: none;
+    background: var(--card);
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.15s;
+  }
+  .half-toggle button + button { border-left: 1px solid var(--border); }
+  .half-toggle button.active { background: var(--accent); color: #fff; }
+  .half-toggle button:hover:not(.active) { background: var(--bg); }
+
+  /* Content */
+  .content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+  .section { margin-bottom: 32px; }
+  .section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title::before {
+    content: '';
+    width: 3px;
+    height: 18px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+
+  /* Card */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  /* Standings Table */
+  .standings-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+  .standings-table th {
+    padding: 10px 12px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+  }
+  .standings-table th:hover { color: var(--accent); }
+  .standings-table th.sorted { color: var(--accent); }
+  .standings-table th:first-child { text-align: left; }
+  .standings-table td {
+    padding: 12px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    font-variant-numeric: tabular-nums;
+  }
+  .standings-table tr:last-child td { border-bottom: none; }
+  .standings-table tr:hover { background: var(--accent-light); }
+  .team-cell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-align: left;
+  }
+  .team-rank {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+  .team-color-bar {
+    width: 4px;
+    height: 32px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .team-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+  .team-name { font-weight: 600; white-space: nowrap; }
+  .team-abbr { color: var(--text-muted); font-size: 0.8rem; margin-left: 4px; }
+  .stat-win { color: var(--green); font-weight: 600; }
+  .stat-lose { color: var(--red); font-weight: 600; }
+  .stat-pct { font-weight: 700; }
+  .strk-w { color: var(--green); font-weight: 600; }
+  .strk-l { color: var(--red); font-weight: 600; }
+
+  /* Cross Team Matrix */
+  .matrix-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .matrix-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    min-width: 600px;
+  }
+  .matrix-table th, .matrix-table td {
+    padding: 10px 8px;
+    text-align: center;
+    border: 1px solid var(--border);
+    font-variant-numeric: tabular-nums;
+  }
+  .matrix-table th {
+    background: var(--bg);
+    font-weight: 600;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+  .matrix-table th.row-header {
+    text-align: left;
+    padding-left: 12px;
+    min-width: 140px;
+  }
+  .matrix-cell-self {
+    background: #f3f4f6;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+  .matrix-cell-win { background: var(--green-bg); }
+  .matrix-cell-lose { background: var(--red-bg); }
+  .matrix-cell-even { background: #fffbeb; }
+  .matrix-w { color: var(--green); font-weight: 600; }
+  .matrix-l { color: var(--red); font-weight: 600; }
+  .matrix-team-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .matrix-team-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* Loading */
+  .loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: var(--text-muted);
+    gap: 12px;
+  }
+  .spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Error */
+  .error-box {
+    padding: 16px 20px;
+    background: var(--red-bg);
+    color: var(--red);
+    border: 1px solid #fecaca;
+    border-radius: var(--radius);
+    font-size: 0.9rem;
+  }
+
+  /* Meta info */
+  .meta-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 16px;
+    background: var(--bg);
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .meta-bar .dot { width: 4px; height: 4px; border-radius: 50%; background: var(--border); }
+
+  /* Nav link */
+  .nav-link {
+    font-size: 0.85rem;
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .nav-link:hover { text-decoration: underline; }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .header-inner { flex-direction: column; align-items: flex-start; }
+    .content { padding: 16px; }
+    .standings-table { font-size: 0.8rem; }
+    .standings-table td, .standings-table th { padding: 8px 6px; }
+    .team-name { font-size: 0.85rem; }
+    .team-abbr { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useMemo, useCallback } = React;
+
+// ==========================================
+// Season Data
+// ==========================================
+const SEASONS = [
+  { id: 'CPBL-2025-JO', label: '2025 例行賽', year: 2025 },
+  { id: 'CPBL-2024-xa', label: '2024 例行賽', year: 2024 },
+  { id: 'CPBL-2023-sk', label: '2023 例行賽', year: 2023 },
+  { id: 'CPBL-2022-dG', label: '2022 例行賽', year: 2022 },
+  { id: 'CPBL-2021-fi', label: '2021 例行賽', year: 2021 },
+  { id: 'CPBL-2020-KS', label: '2020 例行賽', year: 2020 },
+  { id: 'CPBL-2019-Sf', label: '2019 例行賽', year: 2019 },
+  { id: 'CPBL-2018-Fq', label: '2018 例行賽', year: 2018 },
+];
+
+// ==========================================
+// API Helpers
+// ==========================================
+async function proxyFetch(apiPath) {
+  const target = `https://www.rebas.tw${apiPath}`;
+  const resp = await fetch(`/proxy?url=${encodeURIComponent(target)}`);
+  const ct = resp.headers.get('content-type') || '';
+  if (!ct.includes('json')) throw new Error('API 回傳非 JSON（可能需要認證）');
+  return resp.json();
+}
+
+async function fetchSeasonData(seasonId) {
+  const result = await proxyFetch(`/api/seasons/${seasonId}`);
+  return result.data;
+}
+
+async function fetchGames(seasonId) {
+  const result = await proxyFetch(`/api/seasons/${seasonId}/games?type=grouped`);
+  return result.data || [];
+}
+
+// ==========================================
+// Compute cross-team matrix from games
+// ==========================================
+function computeCrossTeam(games, teams) {
+  const matrix = {};
+  const teamIds = teams.map(t => t.team.uniqid);
+
+  // Initialize
+  teamIds.forEach(a => {
+    matrix[a] = {};
+    teamIds.forEach(b => {
+      matrix[a][b] = { wins: 0, losses: 0, draws: 0 };
+    });
+  });
+
+  games.forEach(game => {
+    if (game.info.status !== 'FINISHED') return;
+    const away = game.away.team_uniqid;
+    const home = game.home.team_uniqid;
+    if (!matrix[away] || !matrix[home]) return;
+
+    if (game.info.winner_side === 'HOME') {
+      matrix[home][away].wins++;
+      matrix[away][home].losses++;
+    } else if (game.info.winner_side === 'AWAY') {
+      matrix[away][home].wins++;
+      matrix[home][away].losses++;
+    } else {
+      // Draw
+      matrix[home][away].draws++;
+      matrix[away][home].draws++;
+    }
+  });
+
+  return matrix;
+}
+
+// ==========================================
+// Components
+// ==========================================
+function Loading({ message }) {
+  return (
+    <div className="loading-container">
+      <div className="spinner" />
+      <div>{message || '載入中...'}</div>
+    </div>
+  );
+}
+
+function ErrorBox({ message }) {
+  return <div className="error-box">{message}</div>;
+}
+
+function getTeamColors(hexColorStr) {
+  if (!hexColorStr) return { bg: '#999', text: '#fff' };
+  const parts = hexColorStr.split(';');
+  return { bg: parts[0] || '#999', text: parts[1] || '#fff' };
+}
+
+function StandingsTable({ standings, halfSeason, seasonData }) {
+  const [sortKey, setSortKey] = useState(null);
+  const [sortAsc, setSortAsc] = useState(true);
+
+  // Filter by half season if needed
+  const displayStandings = useMemo(() => {
+    let list = [...standings];
+    if (sortKey) {
+      list.sort((a, b) => {
+        let va = sortKey === 'team' ? a.team.name : a[sortKey];
+        let vb = sortKey === 'team' ? b.team.name : b[sortKey];
+        if (typeof va === 'string') return sortAsc ? va.localeCompare(vb) : vb.localeCompare(va);
+        return sortAsc ? va - vb : vb - va;
+      });
+    }
+    return list;
+  }, [standings, sortKey, sortAsc]);
+
+  function handleSort(key) {
+    if (sortKey === key) {
+      setSortAsc(!sortAsc);
+    } else {
+      setSortKey(key);
+      setSortAsc(key === 'order');
+    }
+  }
+
+  const columns = [
+    { key: 'order', label: '#' },
+    { key: 'team', label: '球隊' },
+    { key: 'wins', label: '勝' },
+    { key: 'loses', label: '敗' },
+    { key: 'draws', label: '和' },
+    { key: 'PCT', label: '勝率' },
+    { key: 'GB', label: '勝差' },
+    { key: 'DIFF', label: '得失分差' },
+    { key: 'STRK', label: '連勝敗' },
+    { key: 'finished', label: '已賽' },
+  ];
+
+  return (
+    <div className="card">
+      <table className="standings-table">
+        <thead>
+          <tr>
+            {columns.map(col => (
+              <th key={col.key}
+                  className={sortKey === col.key ? 'sorted' : ''}
+                  onClick={() => handleSort(col.key)}>
+                {col.label}{sortKey === col.key ? (sortAsc ? ' ↑' : ' ↓') : ''}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {displayStandings.map((row, i) => {
+            const colors = getTeamColors(row.team.hex_color);
+            const strk = row.STRK;
+            return (
+              <tr key={row.team.uniqid}>
+                <td><span className="team-rank">{row.order}</span></td>
+                <td>
+                  <div className="team-cell">
+                    <div className="team-color-bar" style={{ background: colors.bg }} />
+                    <span className="team-name">{row.team.name}</span>
+                    <span className="team-abbr">{row.team.abbr}</span>
+                  </div>
+                </td>
+                <td className="stat-win">{row.wins}</td>
+                <td className="stat-lose">{row.loses}</td>
+                <td>{row.draws}</td>
+                <td className="stat-pct">{row.PCT.toFixed(3).replace(/^0/, '')}</td>
+                <td>{row.GB === 0 ? '-' : row.GB}</td>
+                <td style={{ color: row.DIFF > 0 ? 'var(--green)' : row.DIFF < 0 ? 'var(--red)' : 'inherit', fontWeight: 600 }}>
+                  {row.DIFF > 0 ? `+${row.DIFF}` : row.DIFF}
+                </td>
+                <td>
+                  {strk > 0 && <span className="strk-w">{strk}連勝</span>}
+                  {strk < 0 && <span className="strk-l">{Math.abs(strk)}連敗</span>}
+                  {strk === 0 && <span style={{ color: 'var(--text-muted)' }}>-</span>}
+                </td>
+                <td>{row.finished}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function CrossTeamMatrix({ matrix, standings }) {
+  if (!matrix || standings.length === 0) return null;
+
+  // Use standings order for rows/columns
+  const teams = standings.map(s => ({
+    id: s.team.uniqid,
+    name: s.team.name,
+    abbr: s.team.abbr,
+    colors: getTeamColors(s.team.hex_color),
+  }));
+
+  return (
+    <div className="card">
+      <div className="matrix-wrapper">
+        <table className="matrix-table">
+          <thead>
+            <tr>
+              <th className="row-header" style={{ background: 'var(--card)' }}></th>
+              {teams.map(t => (
+                <th key={t.id}>
+                  <div className="matrix-team-header" style={{ justifyContent: 'center' }}>
+                    <span className="matrix-team-dot" style={{ background: t.colors.bg }} />
+                    {t.abbr || t.name.slice(0, 2)}
+                  </div>
+                </th>
+              ))}
+              <th>合計</th>
+            </tr>
+          </thead>
+          <tbody>
+            {teams.map(rowTeam => {
+              let totalW = 0, totalL = 0, totalD = 0;
+              return (
+                <tr key={rowTeam.id}>
+                  <th className="row-header">
+                    <div className="matrix-team-header">
+                      <span className="matrix-team-dot" style={{ background: rowTeam.colors.bg }} />
+                      {rowTeam.name}
+                    </div>
+                  </th>
+                  {teams.map(colTeam => {
+                    if (rowTeam.id === colTeam.id) {
+                      return <td key={colTeam.id} className="matrix-cell-self">-</td>;
+                    }
+                    const rec = matrix[rowTeam.id]?.[colTeam.id] || { wins: 0, losses: 0, draws: 0 };
+                    totalW += rec.wins;
+                    totalL += rec.losses;
+                    totalD += rec.draws;
+                    const isWin = rec.wins > rec.losses;
+                    const isLose = rec.wins < rec.losses;
+                    const isEven = rec.wins === rec.losses && rec.wins > 0;
+                    const cls = isWin ? 'matrix-cell-win' : isLose ? 'matrix-cell-lose' : isEven ? 'matrix-cell-even' : '';
+                    return (
+                      <td key={colTeam.id} className={cls}>
+                        <span className="matrix-w">{rec.wins}</span>
+                        {' - '}
+                        <span className="matrix-l">{rec.losses}</span>
+                        {rec.draws > 0 && <span> - {rec.draws}</span>}
+                      </td>
+                    );
+                  })}
+                  <td style={{ fontWeight: 600, fontSize: '0.8rem' }}>
+                    <span className="matrix-w">{totalW}</span>
+                    {' - '}
+                    <span className="matrix-l">{totalL}</span>
+                    {totalD > 0 && <span> - {totalD}</span>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// App
+// ==========================================
+function App() {
+  const [seasonId, setSeasonId] = useState(SEASONS[0].id);
+  const [seasonData, setSeasonData] = useState(null);
+  const [games, setGames] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const loadData = useCallback(async (sid) => {
+    setLoading(true);
+    setError(null);
+    setSeasonData(null);
+    setGames([]);
+
+    try {
+      // Fetch season data (standings) and games in parallel
+      const [sData, gData] = await Promise.all([
+        fetchSeasonData(sid),
+        fetchGames(sid),
+      ]);
+      setSeasonData(sData);
+      setGames(gData);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData(seasonId);
+  }, [seasonId, loadData]);
+
+  const standings = useMemo(() => {
+    if (!seasonData?.standings) return [];
+    return [...seasonData.standings].sort((a, b) => a.order - b.order);
+  }, [seasonData]);
+
+  const crossTeam = useMemo(() => {
+    if (standings.length === 0 || games.length === 0) return null;
+    return computeCrossTeam(games, standings);
+  }, [games, standings]);
+
+  const finishedGames = useMemo(() => {
+    return games.filter(g => g.info.status === 'FINISHED').length;
+  }, [games]);
+
+  const currentSeason = SEASONS.find(s => s.id === seasonId);
+
+  return (
+    <>
+      {/* Header */}
+      <div className="header">
+        <div className="header-inner">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <h1><span>CPBL</span> 戰績表</h1>
+            <a href="/index.html" className="nav-link">API Explorer</a>
+          </div>
+          <div className="header-right">
+            <select
+              className="season-select"
+              value={seasonId}
+              onChange={e => setSeasonId(e.target.value)}
+            >
+              {SEASONS.map(s => (
+                <option key={s.id} value={s.id}>{s.label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="content">
+        {loading && <Loading message={`載入 ${currentSeason?.label || ''} 資料中...`} />}
+        {error && <ErrorBox message={`載入失敗：${error}`} />}
+
+        {!loading && !error && seasonData && (
+          <>
+            {/* Meta */}
+            <div className="section">
+              <div className="card">
+                <div className="meta-bar">
+                  <span><strong>{seasonData.title}</strong></span>
+                  <span className="dot" />
+                  <span>{seasonData.type === 'LEAGUE_MATCHES' ? '例行賽' : seasonData.type}</span>
+                  <span className="dot" />
+                  <span>{seasonData.start_at?.split('T')[0]} ~ {seasonData.end_at?.split('T')[0]}</span>
+                  <span className="dot" />
+                  <span>已完成 {finishedGames} 場</span>
+                  <span className="dot" />
+                  <span>{standings.length} 支球隊</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Standings */}
+            <div className="section">
+              <div className="section-title">聯盟戰績</div>
+              <StandingsTable
+                standings={standings}
+                seasonData={seasonData}
+              />
+            </div>
+
+            {/* Cross Team */}
+            {crossTeam && (
+              <div className="section">
+                <div className="section-title">交叉對戰成績</div>
+                <CrossTeamMatrix matrix={crossTeam} standings={standings} />
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
