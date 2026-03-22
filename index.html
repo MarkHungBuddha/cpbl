@@ -256,6 +256,109 @@
   .hidden { display: none !important; }
   .chevron { transition: transform 0.2s; font-size: 0.8rem; color: var(--text-muted); }
   .expanded .chevron { transform: rotate(90deg); }
+
+  /* Player Search Panel */
+  .player-search-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
+  .player-search-panel .panel-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    cursor: pointer;
+    background: linear-gradient(90deg, var(--surface2), var(--surface));
+    border-bottom: 1px solid var(--border);
+    user-select: none;
+  }
+  .player-search-panel .panel-header:hover { opacity: 0.9; }
+  .player-search-panel .panel-header h3 { font-size: 0.95rem; color: var(--accent); }
+  .player-search-panel .panel-header span.hint { font-size: 0.8rem; color: var(--text-muted); }
+  .player-search-body { padding: 16px; display: none; }
+  .player-search-panel.open .player-search-body { display: block; }
+  .player-search-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .player-search-row input, .player-search-row select {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+  }
+  #player-search-input { width: 220px; }
+  #player-season-select { width: 280px; }
+  .btn-search {
+    background: var(--accent2);
+    color: #fff;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-search:hover { opacity: 0.85; }
+  .btn-search:disabled { opacity: 0.5; }
+  .player-results {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 8px;
+    max-height: 400px;
+    overflow-y: auto;
+  }
+  .player-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .player-card:hover { border-color: var(--accent); background: var(--surface2); }
+  .player-card.selected { border-color: var(--post); background: rgba(73,204,144,0.1); }
+  .player-card .p-name { font-weight: 600; font-size: 0.95rem; }
+  .player-card .p-id { font-family: monospace; font-size: 0.75rem; color: var(--text-muted); }
+  .player-card .p-team { font-size: 0.8rem; color: var(--get); }
+  .player-card .p-pos { font-size: 0.75rem; color: var(--put); background: rgba(252,161,48,0.15); padding: 1px 6px; border-radius: 3px; }
+  .player-search-status { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; }
+  .selected-player-bar {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    background: rgba(73,204,144,0.1);
+    border-top: 1px solid var(--post);
+    font-size: 0.85rem;
+  }
+  .selected-player-bar.visible { display: flex; }
+  .selected-player-bar .sp-label { color: var(--text-muted); }
+  .selected-player-bar .sp-name { font-weight: 700; color: var(--post); }
+  .selected-player-bar .sp-id { font-family: monospace; color: var(--text); }
+  .btn-clear-player {
+    background: transparent;
+    border: 1px solid var(--text-muted);
+    color: var(--text-muted);
+    padding: 2px 10px;
+    border-radius: 3px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    margin-left: auto;
+  }
+  .btn-clear-player:hover { border-color: var(--accent); color: var(--accent); }
+
   @media (max-width: 900px) {
     .sidebar { display: none; }
     .main { padding: 16px; }
@@ -284,9 +387,35 @@
   </div>
 </header>
 
+<div class="selected-player-bar" id="selected-player-bar">
+  <span class="sp-label">已選擇球員：</span>
+  <span class="sp-name" id="sp-name"></span>
+  <span class="sp-id" id="sp-id"></span>
+  <button class="btn-clear-player" onclick="clearSelectedPlayer()">清除</button>
+</div>
 <div class="layout">
   <nav class="sidebar" id="sidebar"></nav>
-  <main class="main" id="main"></main>
+  <main class="main" id="main">
+    <div class="player-search-panel open" id="player-search-panel">
+      <div class="panel-header" onclick="document.getElementById('player-search-panel').classList.toggle('open')">
+        <span class="chevron">&#9654;</span>
+        <h3>球員搜尋工具</h3>
+        <span class="hint">搜尋球員名字，取得 player_uniqid 後自動填入所有欄位</span>
+      </div>
+      <div class="player-search-body">
+        <div class="player-search-row">
+          <input type="text" id="player-search-input" placeholder="輸入球員名字（如：林安可）" onkeydown="if(event.key==='Enter')searchPlayers()">
+          <select id="player-season-select">
+            <option value="">不限賽季</option>
+          </select>
+          <button class="btn-search" onclick="searchPlayers()">搜尋</button>
+          <button class="btn-search" style="background:var(--get);color:#000" onclick="searchPlayers('all')">列出全部球員</button>
+        </div>
+        <div class="player-search-status" id="player-search-status"></div>
+        <div class="player-results" id="player-results"></div>
+      </div>
+    </div>
+  </main>
 </div>
 
 <script>
@@ -683,6 +812,18 @@ function renderParamRow(p, inType) {
     </div>`;
   }
 
+  // Special: player_uniqid gets auto-fill indicator
+  if (p.name === 'player_uniqid') {
+    return `<div class="param-row">
+      <label>${labelText}</label>
+      <input type="text" data-param="${p.name}" data-in="${inType}" data-manual="true"
+        placeholder="使用上方搜尋工具自動填入"
+        value="${p.default || ''}"
+        style="border-left:2px solid var(--post) !important">
+      <span class="param-hint" style="color:var(--post)">由球員搜尋自動填入</span>
+    </div>`;
+  }
+
   // Render as plain input
   return `<div class="param-row">
     <label>${labelText}</label>
@@ -763,7 +904,13 @@ function buildUI() {
   });
 
   sidebar.innerHTML = sidebarHTML;
-  main.innerHTML = mainHTML;
+  // Append after the player search panel instead of replacing
+  const existingPanel = document.getElementById('player-search-panel');
+  if (existingPanel) {
+    existingPanel.insertAdjacentHTML('afterend', mainHTML);
+  } else {
+    main.innerHTML = mainHTML;
+  }
 }
 
 function toggleCard(cardId) {
@@ -889,6 +1036,220 @@ document.getElementById('search-box').addEventListener('input', function() {
   });
 });
 
+// ==========================================
+// Player Search
+// ==========================================
+let selectedPlayer = null;
+
+function populateSeasonSelect() {
+  const sel = document.getElementById('player-season-select');
+  KNOWN_OPTIONS.season_uniqid.forEach(group => {
+    if (!group.group || !group.items) return;
+    const og = document.createElement('optgroup');
+    og.label = group.group;
+    group.items.forEach(item => {
+      const opt = document.createElement('option');
+      opt.value = item.value;
+      opt.textContent = item.label;
+      og.appendChild(opt);
+    });
+    sel.appendChild(og);
+  });
+}
+
+async function searchPlayers(mode) {
+  const query = document.getElementById('player-search-input').value.trim();
+  const season = document.getElementById('player-season-select').value;
+  const token = document.getElementById('global-token').value.trim();
+  const statusEl = document.getElementById('player-search-status');
+  const resultsEl = document.getElementById('player-results');
+
+  if (mode !== 'all' && !query) {
+    statusEl.textContent = '請輸入球員名字';
+    return;
+  }
+
+  statusEl.textContent = '搜尋中...';
+  resultsEl.innerHTML = '';
+
+  // Try multiple search strategies
+  const results = [];
+  let found = false;
+
+  // Strategy 1: /api/formal/search/players?query=
+  if (query) {
+    try {
+      const url1 = `https://www.rebas.tw/api/formal/search/players?query=${encodeURIComponent(query)}`;
+      const resp1 = await fetch(`/proxy?url=${encodeURIComponent(url1)}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } : { 'Accept': 'application/json' }
+      });
+      const ct1 = resp1.headers.get('content-type') || '';
+      if (ct1.includes('json')) {
+        const data1 = await resp1.json();
+        const players = Array.isArray(data1) ? data1 : (data1.data || data1.players || []);
+        players.forEach(p => results.push(normalizePlayer(p)));
+        if (results.length > 0) found = true;
+      }
+    } catch {}
+  }
+
+  // Strategy 2: /api/formal/players?query=
+  if (!found && query) {
+    try {
+      const url2 = `https://www.rebas.tw/api/formal/players?query=${encodeURIComponent(query)}`;
+      const resp2 = await fetch(`/proxy?url=${encodeURIComponent(url2)}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } : { 'Accept': 'application/json' }
+      });
+      const ct2 = resp2.headers.get('content-type') || '';
+      if (ct2.includes('json')) {
+        const data2 = await resp2.json();
+        const players = Array.isArray(data2) ? data2 : (data2.data || data2.players || []);
+        players.forEach(p => {
+          if (!results.find(r => r.uniqid === (p.uniqid || p.player_uniqid)))
+            results.push(normalizePlayer(p));
+        });
+        if (results.length > 0) found = true;
+      }
+    } catch {}
+  }
+
+  // Strategy 3: /api/formal/players?position=&team=&season= (list all)
+  if (!found && mode === 'all' && season) {
+    try {
+      const url3 = `https://www.rebas.tw/api/formal/players?season=${encodeURIComponent(season)}`;
+      const resp3 = await fetch(`/proxy?url=${encodeURIComponent(url3)}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } : { 'Accept': 'application/json' }
+      });
+      const ct3 = resp3.headers.get('content-type') || '';
+      if (ct3.includes('json')) {
+        const data3 = await resp3.json();
+        const players = Array.isArray(data3) ? data3 : (data3.data || data3.players || []);
+        players.forEach(p => results.push(normalizePlayer(p)));
+        if (results.length > 0) found = true;
+      }
+    } catch {}
+  }
+
+  // Strategy 4: If season selected, try /api/seasons/{id}/teams then teams/{id}/players
+  if (!found && season) {
+    try {
+      // Get teams for this season
+      const teamsUrl = `https://www.rebas.tw/api/formal/seasons/${encodeURIComponent(season)}/teams/`;
+      const teamsResp = await fetch(`/proxy?url=${encodeURIComponent(teamsUrl)}`, {
+        headers: token ? { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } : { 'Accept': 'application/json' }
+      });
+      const teamsCt = teamsResp.headers.get('content-type') || '';
+      if (teamsCt.includes('json')) {
+        const teamsData = await teamsResp.json();
+        const teams = Array.isArray(teamsData) ? teamsData : (teamsData.data || teamsData.teams || []);
+        statusEl.textContent = `找到 ${teams.length} 支隊伍，正在載入球員...`;
+
+        for (const team of teams) {
+          const teamId = team.uniqid || team.team_uniqid;
+          const teamName = team.name || team.team_name || '';
+          if (!teamId) continue;
+          try {
+            const playersUrl = `https://www.rebas.tw/api/formal/seasons/${encodeURIComponent(season)}/teams/${encodeURIComponent(teamId)}/players`;
+            const pResp = await fetch(`/proxy?url=${encodeURIComponent(playersUrl)}`, {
+              headers: token ? { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' } : { 'Accept': 'application/json' }
+            });
+            const pCt = pResp.headers.get('content-type') || '';
+            if (pCt.includes('json')) {
+              const pData = await pResp.json();
+              const players = Array.isArray(pData) ? pData : (pData.data || pData.players || []);
+              players.forEach(p => {
+                const np = normalizePlayer(p);
+                np.team = np.team || teamName;
+                if (query) {
+                  if (np.name.includes(query) || (np.eng_name && np.eng_name.toLowerCase().includes(query.toLowerCase()))) {
+                    results.push(np);
+                  }
+                } else {
+                  results.push(np);
+                }
+              });
+              found = true;
+            }
+          } catch {}
+        }
+      }
+    } catch {}
+  }
+
+  if (results.length === 0) {
+    statusEl.innerHTML = `找不到結果。<br><span style="color:var(--put)">提示：大部分搜尋 API 需要 Bearer Token 才能使用。請在頂部貼上 JWT Token 後再試。<br>或選擇一個賽季後點「列出全部球員」。</span>`;
+    return;
+  }
+
+  statusEl.textContent = `找到 ${results.length} 位球員（點擊選擇後自動填入 player_uniqid）`;
+  renderPlayerResults(results);
+}
+
+function normalizePlayer(p) {
+  return {
+    uniqid: p.uniqid || p.player_uniqid || p.id || '',
+    name: p.name || p.player_name || p.display_name || '',
+    eng_name: p.eng_name || p.english_name || '',
+    team: p.team_name || p.team || '',
+    team_uniqid: p.team_uniqid || '',
+    position: p.position || p.pos || '',
+    number: p.number || p.jersey_number || '',
+    avatar: p.avatar_url || p.photo || '',
+  };
+}
+
+function renderPlayerResults(players) {
+  const resultsEl = document.getElementById('player-results');
+  resultsEl.innerHTML = players.map(p => `
+    <div class="player-card ${selectedPlayer && selectedPlayer.uniqid === p.uniqid ? 'selected' : ''}"
+         onclick='selectPlayer(${JSON.stringify(p).replace(/'/g, "&#39;")})'>
+      <div>
+        <div class="p-name">${p.number ? '#' + p.number + ' ' : ''}${p.name} ${p.eng_name ? '<span style="font-weight:400;font-size:0.8rem;color:var(--text-muted)">' + p.eng_name + '</span>' : ''}</div>
+        <div class="p-id">uniqid: ${p.uniqid}</div>
+      </div>
+      <div style="margin-left:auto;text-align:right">
+        ${p.team ? '<div class="p-team">' + p.team + '</div>' : ''}
+        ${p.position ? '<span class="p-pos">' + p.position + '</span>' : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+function selectPlayer(player) {
+  selectedPlayer = player;
+
+  // Update bar
+  const bar = document.getElementById('selected-player-bar');
+  document.getElementById('sp-name').textContent = `${player.name} ${player.eng_name || ''}`;
+  document.getElementById('sp-id').textContent = player.uniqid;
+  bar.classList.add('visible');
+
+  // Auto-fill all player_uniqid fields
+  document.querySelectorAll('select[data-param="player_uniqid"], input[data-param="player_uniqid"]').forEach(el => {
+    el.value = player.uniqid;
+  });
+
+  // Also fill team_uniqid if player has team info
+  if (player.team_uniqid) {
+    document.querySelectorAll('input[data-param="team_uniqid"][data-manual="true"]').forEach(el => {
+      el.value = player.team_uniqid;
+    });
+  }
+
+  // Highlight selected in results
+  document.querySelectorAll('.player-card').forEach(card => card.classList.remove('selected'));
+  event.currentTarget.classList.add('selected');
+}
+
+function clearSelectedPlayer() {
+  selectedPlayer = null;
+  document.getElementById('selected-player-bar').classList.remove('visible');
+  document.querySelectorAll('input[data-param="player_uniqid"][data-manual="true"]').forEach(el => {
+    el.value = '';
+  });
+}
+
+populateSeasonSelect();
 buildUI();
 </script>
 </body>
