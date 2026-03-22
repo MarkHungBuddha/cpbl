@@ -6,36 +6,45 @@
 <title>Rebas API Explorer</title>
 <style>
   :root {
-    --bg: #1a1a2e;
-    --surface: #16213e;
-    --surface2: #0f3460;
-    --accent: #e94560;
-    --accent2: #533483;
-    --text: #eee;
-    --text-muted: #999;
-    --get: #61affe;
-    --post: #49cc90;
-    --put: #fca130;
-    --delete: #f93e3e;
-    --border: #2a2a4a;
+    --bg: #f0f2f5;
+    --card: #ffffff;
+    --surface: #ffffff;
+    --surface2: #f8fafc;
+    --accent: #2563eb;
+    --accent2: #1e40af;
+    --accent-light: #eff6ff;
+    --text: #1a1a2e;
+    --text-muted: #6b7280;
+    --get: #2563eb;
+    --post: #16a34a;
+    --put: #d97706;
+    --delete: #dc2626;
+    --border: #e5e7eb;
+    --green: #16a34a;
+    --green-bg: #f0fdf4;
+    --red: #dc2626;
+    --red-bg: #fef2f2;
+    --radius: 4px;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
     background: var(--bg);
     color: var(--text);
-    line-height: 1.6;
+    line-height: 1.5;
+    min-height: 100vh;
   }
   header {
-    background: linear-gradient(135deg, var(--surface), var(--accent2));
-    padding: 24px 32px;
-    border-bottom: 2px solid var(--accent);
+    background: var(--card);
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
     position: sticky;
     top: 0;
     z-index: 100;
   }
-  header h1 { font-size: 1.6rem; }
-  header p { color: var(--text-muted); font-size: 0.9rem; margin-top: 4px; }
+  header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; }
+  header h1 span { color: var(--accent); }
+  header p { color: var(--text-muted); font-size: 0.85rem; margin-top: 4px; }
   .header-controls {
     display: flex;
     gap: 12px;
@@ -48,17 +57,18 @@
     background: var(--bg);
     border: 1px solid var(--border);
     color: var(--text);
-    padding: 6px 10px;
-    border-radius: 4px;
+    padding: 8px 12px;
+    border-radius: var(--radius);
     font-size: 0.85rem;
   }
+  .header-controls input:focus, .header-controls select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
   .header-controls input[type="text"] { width: 320px; }
   #search-box { width: 240px; }
   .layout { display: flex; min-height: calc(100vh - 140px); }
   .sidebar {
     width: 260px;
     min-width: 260px;
-    background: var(--surface);
+    background: var(--card);
     border-right: 1px solid var(--border);
     overflow-y: auto;
     position: sticky;
@@ -69,9 +79,9 @@
     padding: 12px 16px 6px;
     font-size: 0.75rem;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 0.04em;
     color: var(--accent);
-    font-weight: 700;
+    font-weight: 600;
     border-top: 1px solid var(--border);
   }
   .sidebar .group-title:first-child { border-top: none; }
@@ -86,7 +96,7 @@
     transition: background 0.15s;
     cursor: pointer;
   }
-  .sidebar a:hover { background: var(--surface2); color: var(--text); }
+  .sidebar a:hover { background: var(--accent-light); color: var(--text); }
   .sidebar a .method-badge {
     font-size: 0.65rem;
     font-weight: 700;
@@ -98,19 +108,29 @@
   .main { flex: 1; padding: 24px 32px; overflow-y: auto; }
   .api-group { margin-bottom: 32px; }
   .api-group h2 {
-    font-size: 1.2rem;
-    color: var(--accent);
-    border-bottom: 1px solid var(--border);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
     padding-bottom: 8px;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .api-group h2::before {
+    content: '';
+    width: 3px;
+    height: 18px;
+    background: var(--accent);
+    border-radius: 2px;
   }
   .api-card {
-    background: var(--surface);
+    background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 8px;
-    margin-bottom: 12px;
+    border-radius: var(--radius);
+    margin-bottom: 8px;
     overflow: hidden;
-    transition: border-color 0.2s;
+    transition: border-color 0.15s;
   }
   .api-card:hover { border-color: var(--accent); }
   .api-card.expanded { border-color: var(--accent); }
@@ -122,7 +142,7 @@
     cursor: pointer;
     user-select: none;
   }
-  .api-card-header:hover { background: rgba(255,255,255,0.03); }
+  .api-card-header:hover { background: var(--bg); }
   .method-badge {
     font-size: 0.75rem;
     font-weight: 700;
@@ -132,17 +152,17 @@
     text-align: center;
     text-transform: uppercase;
   }
-  .method-GET { background: var(--get); color: #000; }
-  .method-POST { background: var(--post); color: #000; }
-  .method-PUT { background: var(--put); color: #000; }
-  .method-DELETE { background: var(--delete); color: #fff; }
+  .method-GET { background: #eff6ff; color: var(--get); border: 1px solid #bfdbfe; }
+  .method-POST { background: var(--green-bg); color: var(--post); border: 1px solid #bbf7d0; }
+  .method-PUT { background: #fffbeb; color: var(--put); border: 1px solid #fde68a; }
+  .method-DELETE { background: var(--red-bg); color: var(--delete); border: 1px solid #fecaca; }
   .api-path { font-family: 'Consolas', 'Fira Code', monospace; font-size: 0.9rem; flex: 1; }
   .api-desc { color: var(--text-muted); font-size: 0.85rem; }
   .api-card-body {
     display: none;
     padding: 16px;
     border-top: 1px solid var(--border);
-    background: rgba(0,0,0,0.2);
+    background: var(--bg);
   }
   .api-card.expanded .api-card-body { display: block; }
   .param-row {
@@ -159,14 +179,15 @@
   }
   .param-row input, .param-row select {
     flex: 1;
-    background: var(--bg);
+    background: var(--card);
     border: 1px solid var(--border);
     color: var(--text);
-    padding: 6px 10px;
-    border-radius: 4px;
+    padding: 8px 10px;
+    border-radius: var(--radius);
     font-size: 0.85rem;
     font-family: monospace;
   }
+  .param-row input:focus, .param-row select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
   .param-row .param-hint {
     font-size: 0.75rem;
     color: var(--text-muted);
@@ -175,34 +196,36 @@
   .body-editor {
     width: 100%;
     min-height: 100px;
-    background: var(--bg);
+    background: var(--card);
     border: 1px solid var(--border);
     color: var(--text);
     padding: 10px;
-    border-radius: 4px;
+    border-radius: var(--radius);
     font-family: 'Consolas', monospace;
     font-size: 0.85rem;
     resize: vertical;
     margin-bottom: 12px;
   }
+  .body-editor:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
   .btn-send {
     background: var(--accent);
     color: #fff;
     border: none;
     padding: 8px 24px;
-    border-radius: 4px;
-    font-size: 0.9rem;
-    font-weight: 600;
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    font-weight: 500;
     cursor: pointer;
-    transition: opacity 0.2s;
+    transition: background 0.15s;
   }
+  .btn-send:hover:not(:disabled) { background: var(--accent2); }
   .btn-send:hover { opacity: 0.85; }
   .btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
   .response-area {
     margin-top: 12px;
-    background: var(--bg);
+    background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 4px;
+    border-radius: var(--radius);
     overflow: hidden;
     display: none;
   }
@@ -212,15 +235,15 @@
     justify-content: space-between;
     align-items: center;
     padding: 8px 12px;
-    background: rgba(255,255,255,0.05);
+    background: var(--bg);
     border-bottom: 1px solid var(--border);
     font-size: 0.8rem;
   }
-  .status-code { font-weight: 700; padding: 2px 8px; border-radius: 3px; }
-  .status-2xx { background: var(--post); color: #000; }
-  .status-4xx { background: var(--put); color: #000; }
-  .status-5xx { background: var(--delete); color: #fff; }
-  .status-0xx { background: var(--text-muted); color: #000; }
+  .status-code { font-weight: 700; padding: 2px 8px; border-radius: 3px; font-size: 0.8rem; }
+  .status-2xx { background: var(--green-bg); color: var(--green); border: 1px solid #bbf7d0; }
+  .status-4xx { background: #fffbeb; color: var(--put); border: 1px solid #fde68a; }
+  .status-5xx { background: var(--red-bg); color: var(--red); border: 1px solid #fecaca; }
+  .status-0xx { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); }
   .response-body {
     padding: 12px;
     max-height: 400px;
@@ -229,6 +252,7 @@
     font-size: 0.8rem;
     white-space: pre-wrap;
     word-break: break-all;
+    color: var(--text);
   }
   .section-label {
     font-size: 0.8rem;
@@ -240,18 +264,18 @@
   }
   .param-row select {
     flex: 1;
-    background: var(--bg);
+    background: var(--card);
     border: 1px solid var(--border);
     color: var(--text);
-    padding: 6px 10px;
-    border-radius: 4px;
+    padding: 8px 10px;
+    border-radius: var(--radius);
     font-size: 0.85rem;
     font-family: monospace;
   }
-  .param-row select optgroup { color: var(--accent); font-weight: 700; }
+  .param-row select optgroup { color: var(--accent); font-weight: 600; }
   .param-row select option { color: var(--text); font-weight: 400; }
   .param-row input[data-manual] {
-    border-left: 2px solid var(--accent) !important;
+    border-left: 3px solid var(--accent) !important;
   }
   .hidden { display: none !important; }
   .chevron { transition: transform 0.2s; font-size: 0.8rem; color: var(--text-muted); }
@@ -259,9 +283,9 @@
 
   /* Login Panel */
   .login-panel {
-    background: var(--surface);
+    background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: var(--radius);
     margin-bottom: 24px;
     overflow: hidden;
   }
@@ -271,12 +295,12 @@
     gap: 12px;
     padding: 12px 16px;
     cursor: pointer;
-    background: linear-gradient(90deg, #1a3a2e, var(--surface));
+    background: var(--green-bg);
     border-bottom: 1px solid var(--border);
     user-select: none;
   }
-  .login-panel .panel-header:hover { opacity: 0.9; }
-  .login-panel .panel-header h3 { font-size: 0.95rem; color: var(--post); }
+  .login-panel .panel-header:hover { background: #dcfce7; }
+  .login-panel .panel-header h3 { font-size: 0.95rem; color: var(--green); font-weight: 600; }
   .login-panel .panel-header .hint { font-size: 0.8rem; color: var(--text-muted); }
   .login-panel-body { padding: 16px; display: none; }
   .login-panel.open .login-panel-body { display: block; }
@@ -291,26 +315,26 @@
     border: 1px solid var(--border);
     color: var(--text);
     padding: 8px 12px;
-    border-radius: 4px;
+    border-radius: var(--radius);
     font-size: 0.9rem;
   }
-  .login-field input:focus { border-color: var(--post); outline: none; }
+  .login-field input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
   .btn-login {
-    padding: 9px 24px;
+    padding: 8px 20px;
     border: none;
-    border-radius: 4px;
-    font-size: 0.9rem;
-    font-weight: 600;
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    font-weight: 500;
     cursor: pointer;
-    transition: opacity 0.2s;
+    transition: background 0.15s;
     display: inline-flex;
     align-items: center;
     gap: 8px;
   }
-  .btn-login:hover { opacity: 0.85; }
+  .btn-login:hover { opacity: 0.9; }
   .btn-login:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn-login-email { background: var(--post); color: #000; }
-  .btn-login-google { background: #fff; color: #333; border: 1px solid #ddd !important; }
+  .btn-login-email { background: var(--green); color: #fff; }
+  .btn-login-google { background: #fff; color: #333; border: 1px solid var(--border) !important; }
   .btn-login-facebook { background: #1877f2; color: #fff; }
   .btn-login-register { background: transparent; color: var(--text-muted); border: 1px solid var(--border) !important; }
   .oauth-buttons { display: flex; flex-direction: column; gap: 10px; }
@@ -322,14 +346,14 @@
     display: none;
   }
   .login-status.visible { display: block; }
-  .login-status.success { background: rgba(73,204,144,0.15); color: var(--post); border: 1px solid var(--post); }
-  .login-status.error { background: rgba(249,62,62,0.15); color: var(--delete); border: 1px solid var(--delete); }
-  .login-status.info { background: rgba(97,175,254,0.15); color: var(--get); border: 1px solid var(--get); }
+  .login-status.success { background: var(--green-bg); color: var(--green); border: 1px solid #bbf7d0; }
+  .login-status.error { background: var(--red-bg); color: var(--red); border: 1px solid #fecaca; }
+  .login-status.info { background: #eff6ff; color: var(--accent); border: 1px solid #bfdbfe; }
   .token-display {
     margin-top: 12px;
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 4px;
+    border-radius: var(--radius);
     padding: 10px;
     display: none;
   }
@@ -338,52 +362,52 @@
   .token-display .token-value {
     font-family: monospace;
     font-size: 0.75rem;
-    color: var(--post);
+    color: var(--green);
     word-break: break-all;
     max-height: 60px;
     overflow: auto;
   }
   .token-display .token-actions { margin-top: 8px; display: flex; gap: 8px; }
   .btn-token-action {
-    background: var(--surface2);
+    background: var(--card);
     border: 1px solid var(--border);
     color: var(--text);
     padding: 4px 12px;
-    border-radius: 3px;
+    border-radius: var(--radius);
     font-size: 0.8rem;
     cursor: pointer;
   }
-  .btn-token-action:hover { border-color: var(--post); }
+  .btn-token-action:hover { border-color: var(--accent); color: var(--accent); }
   .user-info-bar {
     display: none;
     align-items: center;
     gap: 10px;
     padding: 6px 16px;
-    background: rgba(73,204,144,0.08);
-    border-bottom: 1px solid rgba(73,204,144,0.2);
+    background: var(--green-bg);
+    border-bottom: 1px solid #bbf7d0;
     font-size: 0.85rem;
   }
   .user-info-bar.visible { display: flex; }
-  .user-info-bar .ui-status { color: var(--post); font-weight: 600; }
+  .user-info-bar .ui-status { color: var(--green); font-weight: 600; }
   .user-info-bar .ui-name { color: var(--text); }
   .user-info-bar .ui-email { color: var(--text-muted); font-size: 0.8rem; }
   .btn-logout {
     margin-left: auto;
     background: transparent;
-    border: 1px solid var(--text-muted);
+    border: 1px solid var(--border);
     color: var(--text-muted);
     padding: 2px 10px;
-    border-radius: 3px;
+    border-radius: var(--radius);
     font-size: 0.8rem;
     cursor: pointer;
   }
-  .btn-logout:hover { border-color: var(--delete); color: var(--delete); }
+  .btn-logout:hover { border-color: var(--red); color: var(--red); }
 
   /* Player Search Panel */
   .player-search-panel {
-    background: var(--surface);
+    background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: var(--radius);
     margin-bottom: 24px;
     overflow: hidden;
   }
@@ -393,12 +417,12 @@
     gap: 12px;
     padding: 12px 16px;
     cursor: pointer;
-    background: linear-gradient(90deg, var(--surface2), var(--surface));
+    background: var(--accent-light);
     border-bottom: 1px solid var(--border);
     user-select: none;
   }
-  .player-search-panel .panel-header:hover { opacity: 0.9; }
-  .player-search-panel .panel-header h3 { font-size: 0.95rem; color: var(--accent); }
+  .player-search-panel .panel-header:hover { background: #dbeafe; }
+  .player-search-panel .panel-header h3 { font-size: 0.95rem; color: var(--accent); font-weight: 600; }
   .player-search-panel .panel-header span.hint { font-size: 0.8rem; color: var(--text-muted); }
   .player-search-body { padding: 16px; display: none; }
   .player-search-panel.open .player-search-body { display: block; }
@@ -414,22 +438,23 @@
     border: 1px solid var(--border);
     color: var(--text);
     padding: 8px 12px;
-    border-radius: 4px;
+    border-radius: var(--radius);
     font-size: 0.9rem;
   }
+  .player-search-row input:focus, .player-search-row select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
   #player-search-input { width: 220px; }
   #player-season-select { width: 280px; }
   .btn-search {
-    background: var(--accent2);
+    background: var(--accent);
     color: #fff;
     border: none;
     padding: 8px 20px;
-    border-radius: 4px;
-    font-size: 0.9rem;
-    font-weight: 600;
+    border-radius: var(--radius);
+    font-size: 0.85rem;
+    font-weight: 500;
     cursor: pointer;
   }
-  .btn-search:hover { opacity: 0.85; }
+  .btn-search:hover { background: var(--accent2); }
   .btn-search:disabled { opacity: 0.5; }
   .player-results {
     display: grid;
@@ -445,41 +470,41 @@
     padding: 10px 14px;
     background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: 6px;
+    border-radius: var(--radius);
     cursor: pointer;
     transition: border-color 0.15s, background 0.15s;
   }
-  .player-card:hover { border-color: var(--accent); background: var(--surface2); }
-  .player-card.selected { border-color: var(--post); background: rgba(73,204,144,0.1); }
+  .player-card:hover { border-color: var(--accent); background: var(--accent-light); }
+  .player-card.selected { border-color: var(--green); background: var(--green-bg); }
   .player-card .p-name { font-weight: 600; font-size: 0.95rem; }
   .player-card .p-id { font-family: monospace; font-size: 0.75rem; color: var(--text-muted); }
-  .player-card .p-team { font-size: 0.8rem; color: var(--get); }
-  .player-card .p-pos { font-size: 0.75rem; color: var(--put); background: rgba(252,161,48,0.15); padding: 1px 6px; border-radius: 3px; }
+  .player-card .p-team { font-size: 0.8rem; color: var(--accent); }
+  .player-card .p-pos { font-size: 0.75rem; color: var(--put); background: #fffbeb; padding: 1px 6px; border-radius: 3px; border: 1px solid #fde68a; }
   .player-search-status { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px; }
   .selected-player-bar {
     display: none;
     align-items: center;
     gap: 12px;
     padding: 8px 16px;
-    background: rgba(73,204,144,0.1);
-    border-top: 1px solid var(--post);
+    background: var(--green-bg);
+    border-top: 1px solid #bbf7d0;
     font-size: 0.85rem;
   }
   .selected-player-bar.visible { display: flex; }
   .selected-player-bar .sp-label { color: var(--text-muted); }
-  .selected-player-bar .sp-name { font-weight: 700; color: var(--post); }
+  .selected-player-bar .sp-name { font-weight: 700; color: var(--green); }
   .selected-player-bar .sp-id { font-family: monospace; color: var(--text); }
   .btn-clear-player {
     background: transparent;
-    border: 1px solid var(--text-muted);
+    border: 1px solid var(--border);
     color: var(--text-muted);
     padding: 2px 10px;
-    border-radius: 3px;
+    border-radius: var(--radius);
     font-size: 0.8rem;
     cursor: pointer;
     margin-left: auto;
   }
-  .btn-clear-player:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-clear-player:hover { border-color: var(--red); color: var(--red); }
 
   @media (max-width: 900px) {
     .sidebar { display: none; }
@@ -491,8 +516,11 @@
 <body>
 
 <header>
-  <h1>Rebas 野球革命 — API Explorer</h1>
-  <p>CPBL 棒球數據分析平台 API 互動式測試工具</p>
+  <div style="display:flex;align-items:center;gap:16px;">
+    <h1><span>CPBL</span> API Explorer</h1>
+    <a href="/standings.html" style="font-size:0.85rem;color:var(--accent);text-decoration:none;">戰績表</a>
+  </div>
+  <p>Rebas 野球革命 — CPBL 棒球數據分析平台 API 互動式測試工具</p>
   <div class="header-controls">
     <label>Base URL:</label>
     <select id="base-url-select">
@@ -563,11 +591,11 @@
                 Facebook 登入
               </button>
             </div>
-            <div style="margin-top:16px;padding:10px;background:var(--bg);border-radius:4px;font-size:0.8rem;color:var(--text-muted);line-height:1.5">
+            <div style="margin-top:16px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);font-size:0.8rem;color:var(--text-muted);line-height:1.5">
               <strong style="color:var(--text)">手動取得 Token：</strong><br>
-              1. 前往 <a href="https://account.rebas.tw/login" target="_blank" style="color:var(--get)">account.rebas.tw/login</a> 登入<br>
+              1. 前往 <a href="https://account.rebas.tw/login" target="_blank" style="color:var(--accent)">account.rebas.tw/login</a> 登入<br>
               2. 開啟 DevTools (F12) → Application → Cookies<br>
-              3. 找到 <code style="color:var(--put)">RB_UID</code> 的值<br>
+              3. 找到 <code style="color:var(--accent);font-weight:600">RB_UID</code> 的值<br>
               4. 貼到上方 Header 的 Bearer Token 欄位
             </div>
           </div>
@@ -605,7 +633,7 @@
             <option value="">不限賽季</option>
           </select>
           <button class="btn-search" onclick="searchPlayers()">搜尋</button>
-          <button class="btn-search" style="background:var(--get);color:#000" onclick="searchPlayers('all')">列出全部球員</button>
+          <button class="btn-search" style="background:#6b7280" onclick="searchPlayers('all')">列出全部球員</button>
         </div>
         <div class="player-search-status" id="player-search-status"></div>
         <div class="player-results" id="player-results"></div>
@@ -1020,8 +1048,8 @@ function renderParamRow(p, inType) {
       <input type="text" data-param="${p.name}" data-in="${inType}" data-manual="true"
         placeholder="使用上方搜尋工具自動填入"
         value="${p.default || ''}"
-        style="border-left:2px solid var(--post) !important">
-      <span class="param-hint" style="color:var(--post)">由球員搜尋自動填入</span>
+        style="border-left:3px solid var(--green) !important">
+      <span class="param-hint" style="color:var(--green)">由球員搜尋自動填入</span>
     </div>`;
   }
 
@@ -1362,10 +1390,10 @@ async function fetchUserInfo(token) {
         // Update token status
         const statusArea = document.getElementById('token-status-area');
         statusArea.innerHTML = `
-          <div style="color:var(--post);font-weight:600;margin-bottom:4px;">已登入</div>
+          <div style="color:var(--green);font-weight:600;margin-bottom:4px;">已登入</div>
           <div style="font-size:0.85rem;">${name}</div>
           <div style="font-size:0.8rem;color:var(--text-muted)">${email}</div>
-          ${user.avatar_url ? '<img src="'+user.avatar_url+'" style="width:40px;height:40px;border-radius:50%;margin-top:8px;border:2px solid var(--post)">' : ''}
+          ${user.avatar_url ? '<img src="'+user.avatar_url+'" style="width:40px;height:40px;border-radius:50%;margin-top:8px;border:2px solid var(--green)">' : ''}
         `;
       }
     }
@@ -1382,7 +1410,7 @@ function updateTokenStatus(token) {
       const exp = payload.exp ? new Date(payload.exp * 1000) : null;
       const statusArea = document.getElementById('token-status-area');
       statusArea.innerHTML = `
-        <div style="color:var(--post);font-weight:600;margin-bottom:4px;">Token 有效</div>
+        <div style="color:var(--green);font-weight:600;margin-bottom:4px;">Token 有效</div>
         ${exp ? '<div style="font-size:0.8rem;color:var(--text-muted)">到期: ' + exp.toLocaleString('zh-TW') + '</div>' : ''}
         ${payload.sub ? '<div style="font-size:0.8rem;color:var(--text-muted)">sub: ' + payload.sub + '</div>' : ''}
       `;
@@ -1604,7 +1632,7 @@ async function searchPlayers(mode) {
   }
 
   if (results.length === 0) {
-    statusEl.innerHTML = `找不到結果。<br><span style="color:var(--put)">提示：大部分搜尋 API 需要 Bearer Token 才能使用。請在頂部貼上 JWT Token 後再試。<br>或選擇一個賽季後點「列出全部球員」。</span>`;
+    statusEl.innerHTML = `找不到結果。<br><span style="color:var(--text-muted)">提示：大部分搜尋 API 需要 Bearer Token 才能使用。請在頂部貼上 JWT Token 後再試。<br>或選擇一個賽季後點「列出全部球員」。</span>`;
     return;
   }
 
