@@ -60,22 +60,6 @@
     text-decoration: none;
   }
   .nav-link:hover { text-decoration: underline; }
-  .season-select {
-    appearance: none;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 8px 36px 8px 14px;
-    border-radius: var(--radius);
-    font-size: 0.9rem;
-    font-weight: 500;
-    cursor: pointer;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236b7280' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 12px center;
-    min-width: 200px;
-  }
-  .season-select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
   .content {
     max-width: 1400px;
     margin: 0 auto;
@@ -248,53 +232,10 @@
 <div id="root"></div>
 
 <script type="text/babel">
-const { useState, useEffect, useMemo, useCallback } = React;
+const { useState, useEffect, useMemo } = React;
 
-const SEASONS = [
-  { group: '2026', items: [
-    { id: 'CPBL-2026-4j', label: '2026 熱身賽' },
-  ]},
-  { group: '2025', items: [
-    { id: 'CPBL-2025-JO', label: '2025 例行賽' },
-    { id: 'CPBL-2025-cF', label: '2025 台灣大賽' },
-    { id: 'CPBL-2025-lX', label: '2025 挑戰賽' },
-    { id: 'CPBL-2025-28', label: '2025 明星賽' },
-    { id: 'CPBL-2025-L0', label: '2025 熱身賽' },
-  ]},
-  { group: '2024', items: [
-    { id: 'CPBL-2024-xa', label: '2024 例行賽' },
-    { id: 'CPBL-2024-Uz', label: '2024 台灣大賽' },
-    { id: 'CPBL-2024-HE', label: '2024 挑戰賽' },
-    { id: 'CPBL-2024-pJ', label: '2024 熱身賽' },
-  ]},
-  { group: '2023', items: [
-    { id: 'CPBL-2023-sk', label: '2023 例行賽' },
-    { id: 'CPBL-2023-Za', label: '2023 台灣大賽' },
-    { id: 'CPBL-2023-b1', label: '2023 挑戰賽' },
-    { id: 'CPBL-2023-yB', label: '2023 熱身賽' },
-  ]},
-  { group: '2022', items: [
-    { id: 'CPBL-2022-dG', label: '2022 例行賽' },
-    { id: 'CPBL-2022-o7', label: '2022 台灣大賽' },
-    { id: 'CPBL-2022-yt', label: '2022 挑戰賽' },
-    { id: 'CPBL-2022-s6', label: '2022 熱身賽' },
-  ]},
-  { group: '2021', items: [
-    { id: 'CPBL-2021-fi', label: '2021 例行賽' },
-    { id: 'CPBL-2021-53', label: '2021 台灣大賽' },
-  ]},
-  { group: '2020', items: [
-    { id: 'CPBL-2020-KS', label: '2020 例行賽' },
-  ]},
-  { group: '2019', items: [
-    { id: 'CPBL-2019-Sf', label: '2019 例行賽' },
-  ]},
-  { group: '2018', items: [
-    { id: 'CPBL-2018-Fq', label: '2018 例行賽' },
-  ]},
-];
-const ALL_SEASONS = SEASONS.flatMap(g => g.items);
-const DEFAULT_SEASON = 'CPBL-2025-JO';
+const SEASON_ID = 'CPBL-2026-4j';
+const SEASON_LABEL = '2026 官辦熱身賽';
 
 const POSITIONS = [
   { key: 1, label: 'P' },
@@ -668,7 +609,6 @@ function FieldingTable({ data, teamFilter, posFilter, qualFilter, getQualOuts })
 // App
 // ==========================================
 function App() {
-  const [seasonId, setSeasonId] = useState(DEFAULT_SEASON);
   const [fieldingData, setFieldingData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadMsg, setLoadMsg] = useState('載入賽季資料...');
@@ -681,78 +621,65 @@ function App() {
   const [posFilter, setPosFilter] = useState('');
   const [qualFilter, setQualFilter] = useState(false);
 
-  const loadData = useCallback(async (sid) => {
-    setLoading(true);
-    setError(null);
-    setFieldingData([]);
-    setProgress(0);
-    setTotal(0);
-    setFinishedCount(0);
-    setTeamGameCounts({});
-    setLoadMsg('載入賽季資料...');
-    setTeamFilter('');
-    setPosFilter('');
-    setQualFilter(false);
-
-    try {
-      // 1. Fetch season info for team lookup
-      const seasonResp = await proxyFetch(`/api/seasons/${sid}`);
-      const seasonData = seasonResp.data;
-      const teamLookup = {};
-      (seasonData.standings || []).forEach(s => {
-        const t = s.team;
-        teamLookup[t.uniqid] = {
-          name: t.name,
-          abbr: t.abbr,
-          color: (t.hex_color || '').split(';')[0] || '#999',
-        };
-      });
-
-      // 2. Fetch game list
-      setLoadMsg('載入比賽列表...');
-      const gamesResp = await proxyFetch(`/api/seasons/${sid}/games?type=grouped`);
-      const allGames = gamesResp.data || [];
-      const finished = allGames.filter(g => g.info?.status === 'FINISHED');
-      setFinishedCount(finished.length);
-
-      // Count finished games per team
-      const tgc = {};
-      finished.forEach(g => {
-        const h = g.home?.team_uniqid;
-        const a = g.away?.team_uniqid;
-        if (h) tgc[h] = (tgc[h] || 0) + 1;
-        if (a) tgc[a] = (tgc[a] || 0) + 1;
-      });
-      setTeamGameCounts(tgc);
-
-      if (finished.length === 0) {
-        setFieldingData([]);
-        setLoading(false);
-        return;
-      }
-
-      // 3. Fetch each game detail
-      setTotal(finished.length);
-      const paths = finished.map(g => `/api/seasons/${sid}/games/${g.uniqid}`);
-      const gameDetails = await fetchWithConcurrency(paths, 3, (done, tot) => {
-        setProgress(done);
-        setLoadMsg(`載入比賽資料 ${done}/${tot}...`);
-      });
-
-      // 4. Compute fielding
-      setLoadMsg('計算守備局數...');
-      const data = computeFielding(gameDetails, teamLookup);
-      setFieldingData(data);
-      setLoading(false);
-    } catch (err) {
-      setError(err.message);
-      setLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
-    loadData(seasonId);
-  }, [seasonId, loadData]);
+    async function loadData() {
+      try {
+        // 1. Fetch season info for team lookup
+        const seasonResp = await proxyFetch(`/api/seasons/${SEASON_ID}`);
+        const seasonData = seasonResp.data;
+        const teamLookup = {};
+        (seasonData.standings || []).forEach(s => {
+          const t = s.team;
+          teamLookup[t.uniqid] = {
+            name: t.name,
+            abbr: t.abbr,
+            color: (t.hex_color || '').split(';')[0] || '#999',
+          };
+        });
+
+        // 2. Fetch game list
+        setLoadMsg('載入比賽列表...');
+        const gamesResp = await proxyFetch(`/api/seasons/${SEASON_ID}/games?type=grouped`);
+        const allGames = gamesResp.data || [];
+        const finished = allGames.filter(g => g.info?.status === 'FINISHED');
+        setFinishedCount(finished.length);
+
+        // Count finished games per team
+        const tgc = {};
+        finished.forEach(g => {
+          const h = g.home?.team_uniqid;
+          const a = g.away?.team_uniqid;
+          if (h) tgc[h] = (tgc[h] || 0) + 1;
+          if (a) tgc[a] = (tgc[a] || 0) + 1;
+        });
+        setTeamGameCounts(tgc);
+
+        if (finished.length === 0) {
+          setFieldingData([]);
+          setLoading(false);
+          return;
+        }
+
+        // 3. Fetch each game detail
+        setTotal(finished.length);
+        const paths = finished.map(g => `/api/seasons/${SEASON_ID}/games/${g.uniqid}`);
+        const gameDetails = await fetchWithConcurrency(paths, 3, (done, tot) => {
+          setProgress(done);
+          setLoadMsg(`載入比賽資料 ${done}/${tot}...`);
+        });
+
+        // 4. Compute fielding
+        setLoadMsg('計算守備局數...');
+        const data = computeFielding(gameDetails, teamLookup);
+        setFieldingData(data);
+        setLoading(false);
+      } catch (err) {
+        setError(err.message);
+        setLoading(false);
+      }
+    }
+    loadData();
+  }, []);
 
   const teams = useMemo(() => {
     const map = {};
@@ -777,8 +704,6 @@ function App() {
     return list.length;
   }, [fieldingData, teamFilter, posFilter, qualFilter, teamGameCounts]);
 
-  const currentSeason = ALL_SEASONS.find(s => s.id === seasonId);
-
   return (
     <>
       <div className="header">
@@ -788,19 +713,6 @@ function App() {
             <a href="/index.html" className="nav-link">API Explorer</a>
             <a href="/standings.html" className="nav-link">戰績表</a>
           </div>
-          <select
-            className="season-select"
-            value={seasonId}
-            onChange={e => setSeasonId(e.target.value)}
-          >
-            {SEASONS.map(g => (
-              <optgroup key={g.group} label={g.group}>
-                {g.items.map(s => (
-                  <option key={s.id} value={s.id}>{s.label}</option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
         </div>
       </div>
 
@@ -813,7 +725,7 @@ function App() {
             <div className="section">
               <div className="card">
                 <div className="meta-bar">
-                  <span><strong>{currentSeason?.label || seasonId}</strong></span>
+                  <span><strong>{SEASON_LABEL}</strong></span>
                   <span className="dot" />
                   <span>已完成 {finishedCount} 場</span>
                   <span className="dot" />
