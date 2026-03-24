@@ -454,7 +454,7 @@ function StandingsTable({ standings, halfSeason, seasonData, games }) {
   const [sortKey, setSortKey] = useState(null);
   const [sortAsc, setSortAsc] = useState(true);
 
-  // Calculate RS/RA per team from games
+  // Calculate RS/RA and one-run game records per team from games
   const teamRunsMap = useMemo(() => {
     const map = {};
     (games || []).forEach(g => {
@@ -463,15 +463,25 @@ function StandingsTable({ standings, halfSeason, seasonData, games }) {
       const homeId = g.home?.team_uniqid;
       const awayRuns = g.away?.runs || 0;
       const homeRuns = g.home?.runs || 0;
+      const diff = Math.abs(awayRuns - homeRuns);
+      const isOneRun = diff === 1;
       if (awayId) {
-        if (!map[awayId]) map[awayId] = { rs: 0, ra: 0 };
+        if (!map[awayId]) map[awayId] = { rs: 0, ra: 0, oneRunW: 0, oneRunL: 0 };
         map[awayId].rs += awayRuns;
         map[awayId].ra += homeRuns;
+        if (isOneRun) {
+          if (g.info.winner_side === 'AWAY') map[awayId].oneRunW++;
+          else if (g.info.winner_side === 'HOME') map[awayId].oneRunL++;
+        }
       }
       if (homeId) {
-        if (!map[homeId]) map[homeId] = { rs: 0, ra: 0 };
+        if (!map[homeId]) map[homeId] = { rs: 0, ra: 0, oneRunW: 0, oneRunL: 0 };
         map[homeId].rs += homeRuns;
         map[homeId].ra += awayRuns;
+        if (isOneRun) {
+          if (g.info.winner_side === 'HOME') map[homeId].oneRunW++;
+          else if (g.info.winner_side === 'AWAY') map[homeId].oneRunL++;
+        }
       }
     });
     return map;
@@ -484,7 +494,10 @@ function StandingsTable({ standings, halfSeason, seasonData, games }) {
       const pyth = (runs.rs > 0 || runs.ra > 0)
         ? (runs.rs ** 2) / (runs.rs ** 2 + runs.ra ** 2)
         : 0;
-      return { ...row, RS: runs.rs, RA: runs.ra, PYTH: pyth };
+      const oneRunW = runs.oneRunW || 0;
+      const oneRunL = runs.oneRunL || 0;
+      const oneRunPCT = (oneRunW + oneRunL) > 0 ? oneRunW / (oneRunW + oneRunL) : null;
+      return { ...row, RS: runs.rs, RA: runs.ra, PYTH: pyth, oneRunW, oneRunL, oneRunPCT };
     });
     if (sortKey) {
       list.sort((a, b) => {
@@ -518,6 +531,7 @@ function StandingsTable({ standings, halfSeason, seasonData, games }) {
     { key: 'RS', label: '得分' },
     { key: 'RA', label: '失分' },
     { key: 'DIFF', label: '得失分差' },
+    { key: 'oneRunPCT', label: '一分差' },
     { key: 'STRK', label: '連勝敗' },
     { key: 'finished', label: '已賽' },
   ];
@@ -560,6 +574,16 @@ function StandingsTable({ standings, halfSeason, seasonData, games }) {
                 <td style={{ color: 'var(--red)', fontWeight: 600 }}>{row.RA}</td>
                 <td style={{ color: row.DIFF > 0 ? 'var(--green)' : row.DIFF < 0 ? 'var(--red)' : 'inherit', fontWeight: 600 }}>
                   {row.DIFF > 0 ? `+${row.DIFF}` : row.DIFF}
+                </td>
+                <td style={{ fontWeight: 600, fontSize: '0.85rem' }}>
+                  {row.oneRunPCT !== null ? (
+                    <span title={`${row.oneRunW}勝 ${row.oneRunL}敗`} style={{ color: row.oneRunPCT >= 0.5 ? 'var(--green)' : 'var(--red)' }}>
+                      {row.oneRunPCT.toFixed(3).replace(/^0/, '')}
+                      <span style={{ color: 'var(--text-muted)', fontWeight: 400, fontSize: '0.75rem', marginLeft: '3px' }}>
+                        ({row.oneRunW}-{row.oneRunL})
+                      </span>
+                    </span>
+                  ) : '-'}
                 </td>
                 <td>
                   {strk > 0 && <span className="strk-w">{strk}連勝</span>}
