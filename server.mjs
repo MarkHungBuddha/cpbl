@@ -6,6 +6,57 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = 3939;
+const CACHE_DIR = path.join(__dirname, '.cache');
+
+// ==========================================
+// File-based proxy cache
+// ==========================================
+// Game detail (finished) = immutable → 30 days
+// Game list / season data = mutable  → 5 minutes
+const TTL_LONG = 30 * 24 * 60 * 60 * 1000; // 30 days
+const TTL_SHORT = 5 * 60 * 1000;            // 5 minutes
+
+function getCacheTTL(apiPath) {
+  // /api/seasons/{id}/games/{gameId} — single game detail, immutable once finished
+  if (/\/api\/seasons\/[^/]+\/games\/[^/?]+$/.test(apiPath)) return TTL_LONG;
+  // Everything else (game list, season standings, etc.) — short TTL
+  return TTL_SHORT;
+}
+
+function getCacheKey(url) {
+  // Deterministic filename from URL
+  const { pathname, search } = new URL(url);
+  const safe = (pathname + search).replace(/[^a-zA-Z0-9_-]/g, '_');
+  return safe.slice(0, 200) + '.json';
+}
+
+function readCache(key, ttl) {
+  const filePath = path.join(CACHE_DIR, key);
+  try {
+    const stat = fs.statSync(filePath);
+    if (Date.now() - stat.mtimeMs > ttl) return null; // expired
+    return fs.readFileSync(filePath);
+  } catch {
+    return null;
+  }
+}
+
+function writeCache(key, statusCode, headers, body) {
+  try {
+    fs.mkdirSync(CACHE_DIR, { recursive: true });
+    const payload = JSON.stringify({ statusCode, headers, body: body.toString('base64') });
+    fs.writeFileSync(path.join(CACHE_DIR, key), payload);
+  } catch {
+    // cache write failure is non-fatal
+  }
+}
+
+function serveCached(res, cached) {
+  const { statusCode, headers, body } = JSON.parse(cached.toString());
+  const buf = Buffer.from(body, 'base64');
+  res.writeHead(statusCode, headers);
+  res.end(buf);
+}
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -31,6 +82,20 @@ const server = http.createServer(async (req, res) => {
 
     try {
       const parsed = new URL(targetUrl);
+
+      // Check cache for GET requests
+      const isGet = req.method === 'GET';
+      const cacheKey = isGet ? getCacheKey(targetUrl) : null;
+      const ttl = isGet ? getCacheTTL(parsed.pathname) : 0;
+
+      if (isGet && cacheKey) {
+        const cached = readCache(cacheKey, ttl);
+        if (cached) {
+          serveCached(res, cached);
+          return;
+        }
+      }
+
       const proxyHeaders = {};
       // Forward relevant headers
       for (const [k, v] of Object.entries(req.headers)) {
@@ -59,8 +124,21 @@ const server = http.createServer(async (req, res) => {
           if (k.startsWith('access-control-')) continue;
           fwdHeaders[k] = v;
         }
-        res.writeHead(proxyRes.statusCode, fwdHeaders);
-        proxyRes.pipe(res);
+
+        // Collect response body for caching
+        if (isGet && cacheKey && proxyRes.statusCode >= 200 && proxyRes.statusCode < 300) {
+          const chunks = [];
+          proxyRes.on('data', c => chunks.push(c));
+          proxyRes.on('end', () => {
+            const respBody = Buffer.concat(chunks);
+            writeCache(cacheKey, proxyRes.statusCode, fwdHeaders, respBody);
+            res.writeHead(proxyRes.statusCode, fwdHeaders);
+            res.end(respBody);
+          });
+        } else {
+          res.writeHead(proxyRes.statusCode, fwdHeaders);
+          proxyRes.pipe(res);
+        }
       });
 
       proxyReq.on('error', (err) => {

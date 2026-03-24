@@ -15,15 +15,34 @@ node server.mjs
 | 頁面 | 說明 |
 |------|------|
 | `/` | API Explorer — Swagger 風格互動式 API 測試工具 |
-| `/standings.html` | CPBL 戰績表 — 各隊戰績 + 交叉對戰成績 |
+| `/standings.html` | 戰績表 — 勝率、預期勝率(PYTH)、一分差勝率、得失分、交叉對戰 |
+| `/fielding.html` | 守備成績 — 按守位分列 IP / PO / A / RF9 |
+| `/player.html` | 球員詳情 — 生涯打擊/投球成績、進階數據 |
+| `/team.html` | 球隊詳情 — 賽季戰績、球員名單 |
 
 ## 專案結構
 
 ```
-server.mjs        — Node.js 代理伺服器 (port 3939)，繞過 CORS
+server.mjs        — Node.js 代理伺服器 (port 3939)，繞過 CORS + 檔案快取
 index.html        — API Explorer (登入、球員搜尋、60+ 端點測試)
-standings.html    — React 戰績頁面 (Flat Design)
+standings.html    — 戰績頁面 (2018–2026 多賽季選擇)
+fielding.html     — 守備成績頁面 (按守位分列，RF/9 per position)
+player.html       — 球員詳情頁面
+team.html         — 球隊詳情頁面
+api/proxy.js      — Vercel Serverless 代理 (部署用)
+.cache/           — 代理快取目錄 (git ignored)
 ```
+
+## Proxy 快取機制
+
+`server.mjs` 內建檔案快取，避免重複呼叫 rebas API：
+
+| 端點類型 | TTL | 說明 |
+|----------|-----|------|
+| 單場比賽詳情 `/games/{id}` | 30 天 | 比賽結束後資料不變 |
+| 其他（賽季、比賽列表等） | 5 分鐘 | 需要追蹤最新狀態 |
+
+快取檔案存放於 `.cache/` 目錄，可隨時刪除重建。
 
 ---
 
