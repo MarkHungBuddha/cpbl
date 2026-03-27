@@ -234,9 +234,6 @@
 <script type="text/babel">
 const { useState, useEffect, useMemo } = React;
 
-const SEASON_ID = 'CPBL-2026-4j';
-const SEASON_LABEL = '2026 官辦熱身賽';
-
 const POSITIONS = [
   { key: 1, label: 'P' },
   { key: 2, label: 'C' },
@@ -609,9 +606,12 @@ function FieldingTable({ data, teamFilter, posFilter, qualFilter, getQualOuts })
 // App
 // ==========================================
 function App() {
+  const [seasons, setSeasons] = useState([]);
+  const [currentSeasonId, setCurrentSeasonId] = useState('');
+  const [currentSeasonLabel, setCurrentSeasonLabel] = useState('');
   const [fieldingData, setFieldingData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [loadMsg, setLoadMsg] = useState('載入賽季資料...');
+  const [loadMsg, setLoadMsg] = useState('載入賽季列表...');
   const [progress, setProgress] = useState(0);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState(null);
@@ -621,11 +621,48 @@ function App() {
   const [posFilter, setPosFilter] = useState('');
   const [qualFilter, setQualFilter] = useState(false);
 
+  // Initialize: Fetch all seasons
   useEffect(() => {
+    async function initSeasons() {
+      try {
+        const resp = await proxyFetch('/api/seasons');
+        const list = resp.data || [];
+        setSeasons(list);
+        
+        // Pick initial season from URL or default to the first one (usually newest)
+        const params = new URLSearchParams(window.location.search);
+        const urlSid = params.get('seasonId');
+        const defaultSid = urlSid || (list.find(s => s.uniqid === 'CPBL-2026-4j')?.uniqid) || list[0]?.uniqid;
+        
+        if (defaultSid) {
+          setCurrentSeasonId(defaultSid);
+          const s = list.find(x => x.uniqid === defaultSid);
+          if (s) setCurrentSeasonLabel(s.name);
+        } else {
+          setLoading(false);
+          setError('找不到任何賽季資料');
+        }
+      } catch (err) {
+        setError(err.message);
+        setLoading(false);
+      }
+    }
+    initSeasons();
+  }, []);
+
+  // Main data loader: Triggers when currentSeasonId changes
+  useEffect(() => {
+    if (!currentSeasonId) return;
+
     async function loadData() {
+      setLoading(true);
+      setError(null);
+      setProgress(0);
+      setTotal(0);
       try {
         // 1. Fetch season info for team lookup
-        const seasonResp = await proxyFetch(`/api/seasons/${SEASON_ID}`);
+        setLoadMsg('載入球隊資料...');
+        const seasonResp = await proxyFetch(`/api/seasons/${currentSeasonId}`);
         const seasonData = seasonResp.data;
         const teamLookup = {};
         (seasonData.standings || []).forEach(s => {
@@ -639,7 +676,7 @@ function App() {
 
         // 2. Fetch game list
         setLoadMsg('載入比賽列表...');
-        const gamesResp = await proxyFetch(`/api/seasons/${SEASON_ID}/games?type=grouped`);
+        const gamesResp = await proxyFetch(`/api/seasons/${currentSeasonId}/games?type=grouped`);
         const allGames = gamesResp.data || [];
         const finished = allGames.filter(g => g.info?.status === 'FINISHED');
         setFinishedCount(finished.length);
@@ -662,7 +699,7 @@ function App() {
 
         // 3. Fetch each game detail
         setTotal(finished.length);
-        const paths = finished.map(g => `/api/seasons/${SEASON_ID}/games/${g.uniqid}`);
+        const paths = finished.map(g => `/api/seasons/${currentSeasonId}/games/${g.uniqid}`);
         const gameDetails = await fetchWithConcurrency(paths, 3, (done, tot) => {
           setProgress(done);
           setLoadMsg(`載入比賽資料 ${done}/${tot}...`);
@@ -679,7 +716,17 @@ function App() {
       }
     }
     loadData();
-  }, []);
+  }, [currentSeasonId]);
+
+  function handleSeasonChange(sid) {
+    setCurrentSeasonId(sid);
+    const s = seasons.find(x => x.uniqid === sid);
+    if (s) setCurrentSeasonLabel(s.name);
+    // Update URL without reload
+    const url = new URL(window.location);
+    url.searchParams.set('seasonId', sid);
+    window.history.pushState({}, '', url);
+  }
 
   const teams = useMemo(() => {
     const map = {};
@@ -713,6 +760,13 @@ function App() {
             <a href="/index.html" className="nav-link">API Explorer</a>
             <a href="/standings.html" className="nav-link">戰績表</a>
           </div>
+          <div className="filter-bar" style={{ marginBottom: 0 }}>
+            <select value={currentSeasonId} onChange={e => handleSeasonChange(e.target.value)} disabled={loading && seasons.length === 0}>
+              {seasons.map(s => (
+                <option key={s.uniqid} value={s.uniqid}>{s.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -725,7 +779,7 @@ function App() {
             <div className="section">
               <div className="card">
                 <div className="meta-bar">
-                  <span><strong>{SEASON_LABEL}</strong></span>
+                  <span><strong>{currentSeasonLabel}</strong></span>
                   <span className="dot" />
                   <span>已完成 {finishedCount} 場</span>
                   <span className="dot" />
