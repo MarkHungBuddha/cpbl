@@ -617,6 +617,7 @@ function FieldingTable({ data, teamFilter, posFilter, qualFilter, getQualOuts })
 // ==========================================
 const SEASONS_LIST = [
   { group: '2026', items: [
+    { id: 'CPBL-2026-oB', label: '2026 例行賽' },
     { id: 'CPBL-2026-4j', label: '2026 熱身賽' },
   ]},
   { group: '2025', items: [
@@ -647,7 +648,7 @@ const SEASONS_LIST = [
 ];
 
 const ALL_SEASONS = SEASONS_LIST.flatMap(g => g.items);
-const DEFAULT_SEASON_ID = 'CPBL-2026-4j';
+const DEFAULT_SEASON_ID = 'CPBL-2026-oB';
 
 // ==========================================
 // App
