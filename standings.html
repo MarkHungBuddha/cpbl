@@ -325,6 +325,7 @@ const { useState, useEffect, useMemo, useCallback } = React;
 // ==========================================
 const SEASONS = [
   { group: '2026', items: [
+    { id: 'CPBL-2026-oB', label: '2026 例行賽' },
     { id: 'CPBL-2026-4j', label: '2026 熱身賽' },
   ]},
   { group: '2025', items: [
@@ -368,7 +369,7 @@ const SEASONS = [
 ];
 
 const ALL_SEASONS = SEASONS.flatMap(g => g.items);
-const DEFAULT_SEASON = 'CPBL-2025-JO';
+const DEFAULT_SEASON = 'CPBL-2026-oB';
 
 // ==========================================
 // API Helpers
